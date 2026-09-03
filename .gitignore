@@ -22,3 +22,6 @@ npm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 検証用に一時配置する業務データ（絶対にコミットしない）
+public/_test-*
