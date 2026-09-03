@@ -8,7 +8,22 @@ PDF・動画・スライド・営業台本・マニュアル・Web教材など�
 
 ---
 
-## 起動方法
+## 公開URL
+
+**https://nrealize6078-hue.github.io/education-content-master/**
+
+`main` ブランチへpushすると GitHub Actions が自動でビルド・公開します。
+
+- 検索エンジンには載りません（`noindex, nofollow` を設定済み）
+- 登録したデータは**開いた人のブラウザ内にだけ**保存されます。URLを共有しても他人にデータは見えません
+- 手元で静的書き出しを試すには `npm run build:pages`（出力先 `out/`）
+
+> リポジトリはPublicです。GitHub Pages を無料プランで使うにはPublicである必要があるためで、
+> 他の社内向け電子書籍リポジトリと同じ運用です。
+
+---
+
+## 起動方法（ローカル開発）
 
 ```bash
 cd C:\Users\realize5\Documents\Claude\education-content-master
