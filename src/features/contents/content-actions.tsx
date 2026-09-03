@@ -11,11 +11,16 @@ import { Button } from "@/components/ui";
 export function CategoryPath({
   content,
   className,
+  hideMajor,
 }: {
   content: EducationContent;
   className?: string;
+  /** 一覧では大項目を選択欄で出すため、パス表示からは省ける */
+  hideMajor?: boolean;
 }) {
-  const parts = [content.majorCategory, content.middleCategory, content.smallCategory];
+  const parts = hideMajor
+    ? [content.middleCategory, content.smallCategory]
+    : [content.majorCategory, content.middleCategory, content.smallCategory];
   return (
     <span className={cn("inline-flex flex-wrap items-center gap-1 text-sm", className)}>
       {parts.map((part, index) => (
@@ -24,7 +29,7 @@ export function CategoryPath({
           <span
             className={cn(
               part?.trim() ? "text-slate-700" : "text-slate-400",
-              index === 0 && "font-bold text-[#0e2245]"
+              index === 0 && !hideMajor && "font-bold text-[#0e2245]"
             )}
           >
             {part?.trim() || "未設定"}
@@ -145,6 +150,10 @@ type ActionMenuProps = {
   onRestore?: () => void;
   onHardDelete: () => void;
   showDetailLink?: boolean;
+  /** 行内に削除ボタンを別途置く場合、メニュー側は隠す */
+  hideHardDelete?: boolean;
+  /** 表の行では幅を節約するため「⋯」表示にする */
+  compact?: boolean;
 };
 
 /** 一覧行の「その他の操作」メニュー。 */
@@ -155,6 +164,8 @@ export function ActionMenu({
   onRestore,
   onHardDelete,
   showDetailLink = true,
+  hideHardDelete = false,
+  compact = false,
 }: ActionMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -185,9 +196,11 @@ export function ActionMenu({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        title="その他の操作（複製・アーカイブ・削除）"
+        title="その他の操作（複製・アーカイブなど）"
+        aria-label="その他の操作"
+        className={compact ? "px-2.5" : undefined}
       >
-        その他 ▾
+        {compact ? "⋯" : "その他 ▾"}
       </Button>
       {open ? (
         <div
@@ -239,17 +252,19 @@ export function ActionMenu({
               アーカイブから戻す
             </button>
           ) : null}
-          <button
-            type="button"
-            className="focus-ring block w-full border-t border-slate-200 px-4 py-3 text-left text-[15px] font-bold text-red-600 hover:bg-red-50"
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              onHardDelete();
-            }}
-          >
-            完全に削除
-          </button>
+          {hideHardDelete ? null : (
+            <button
+              type="button"
+              className="focus-ring block w-full border-t border-slate-200 px-4 py-3 text-left text-[15px] font-bold text-red-600 hover:bg-red-50"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onHardDelete();
+              }}
+            >
+              完全に削除
+            </button>
+          )}
         </div>
       ) : null}
     </div>

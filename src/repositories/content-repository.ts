@@ -22,4 +22,10 @@ export interface ContentRepository {
   replaceAll(items: EducationContent[]): Promise<void>;
   /** CSVインポートなどでまとめて追加登録する */
   bulkCreate(drafts: EducationContentDraft[]): Promise<EducationContent[]>;
+  /** 複数件へ同じ変更をまとめて適用する */
+  bulkUpdate(ids: string[], patch: Partial<EducationContentDraft>): Promise<void>;
+  /** 複数件をまとめてアーカイブする */
+  bulkArchive(ids: string[]): Promise<void>;
+  /** 複数件をまとめて完全削除する。元に戻せない。 */
+  bulkHardDelete(ids: string[]): Promise<void>;
 }

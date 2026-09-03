@@ -53,4 +53,13 @@ export class SupabaseContentRepository implements ContentRepository {
   bulkCreate(): Promise<EducationContent[]> {
     throw new Error("not implemented");
   }
+  bulkUpdate(): Promise<void> {
+    throw new Error("not implemented");
+  }
+  bulkArchive(): Promise<void> {
+    throw new Error("not implemented");
+  }
+  bulkHardDelete(): Promise<void> {
+    throw new Error("not implemented");
+  }
 }

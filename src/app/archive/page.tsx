@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  MAJOR_CATEGORIES,
   createEmptyFilters,
   type ContentFilters,
   type EducationContent,
@@ -13,21 +14,62 @@ import { useContentStore } from "@/features/contents/content-store";
 import { applyFilters, sortContents } from "@/features/contents/filter-utils";
 import { SearchFilterBar } from "@/features/contents/search-filter-bar";
 import { ContentList } from "@/features/contents/content-list";
+import { BulkActionBar } from "@/features/contents/bulk-action-bar";
 import { HardDeleteDialog } from "@/features/contents/delete-dialog";
 
 export default function ArchivePage() {
-  const { archived, loading, duplicate, restore, hardDelete } = useContentStore();
+  const {
+    contents,
+    archived,
+    loading,
+    update,
+    duplicate,
+    restore,
+    hardDelete,
+    bulkUpdate,
+    bulkHardDelete,
+  } = useContentStore();
   const [filters, setFilters] = useState<ContentFilters>(createEmptyFilters());
   const [sort, setSort] = useState<SortOrder>("updatedDesc");
   const [deleteTarget, setDeleteTarget] = useState<EducationContent | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const visible = useMemo(
     () => sortContents(applyFilters(archived, filters), sort),
     [archived, filters, sort]
   );
 
+  const majorOptions = useMemo(() => {
+    const fromData = [...new Set([...contents, ...archived].map((c) => c.majorCategory).filter((v) => v.trim()))];
+    const base = fromData.length > 0 ? fromData : [...MAJOR_CATEGORIES];
+    return base.sort((a, b) => a.localeCompare(b, "ja"));
+  }, [contents, archived]);
+
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const alive = new Set(visible.map((c) => c.id));
+      const next = new Set([...prev].filter((id) => alive.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [visible]);
+
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const toggleSelectAll = () =>
+    setSelectedIds((prev) =>
+      visible.every((c) => prev.has(c.id)) ? new Set() : new Set(visible.map((c) => c.id))
+    );
+
+  const ids = [...selectedIds];
+
   return (
-    <div className="space-y-5">
+    <div className={selectedIds.size > 0 ? "space-y-5 pb-[15rem] sm:pb-28" : "space-y-5"}>
       <nav className="text-sm text-slate-500">
         <Link href="/" className="focus-ring rounded font-bold hover:underline">
           ホーム
@@ -64,12 +106,33 @@ export default function ArchivePage() {
           />
           <ContentList
             contents={visible}
+            majorOptions={majorOptions}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onToggleSelectAll={toggleSelectAll}
+            onInlineUpdate={(id, patch) => void update(id, patch)}
             onDuplicate={(id) => void duplicate(id)}
             onRestore={(id) => void restore(id)}
             onHardDelete={setDeleteTarget}
           />
         </>
       )}
+
+      <BulkActionBar
+        selectedCount={selectedIds.size}
+        majorOptions={majorOptions}
+        onClearSelection={() => setSelectedIds(new Set())}
+        onChangeStatus={(status) => void bulkUpdate(ids, { status })}
+        onChangeMajor={(majorCategory) => void bulkUpdate(ids, { majorCategory })}
+        onRestore={async () => {
+          for (const id of ids) await restore(id);
+          setSelectedIds(new Set());
+        }}
+        onHardDelete={async () => {
+          await bulkHardDelete(ids);
+          setSelectedIds(new Set());
+        }}
+      />
 
       <HardDeleteDialog
         target={deleteTarget}

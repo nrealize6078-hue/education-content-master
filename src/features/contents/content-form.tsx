@@ -9,13 +9,12 @@ import {
   CONTENT_STATUSES,
   MAJOR_CATEGORIES,
   MATERIAL_FORMATS,
-  MIDDLE_CATEGORY_SUGGESTIONS,
   createEmptyDraft,
   type Audience,
   type EducationContentDraft,
-  type MajorCategory,
 } from "@/types/content";
 import { Button, Card } from "@/components/ui";
+import { useContentStore } from "./content-store";
 
 type Props = {
   initial?: EducationContentDraft;
@@ -25,12 +24,39 @@ type Props = {
 };
 
 export function ContentForm({ initial, submitLabel, onSubmit, onCancel }: Props) {
+  const { contents, archived } = useContentStore();
   const baseline = useMemo(() => initial ?? createEmptyDraft(), [initial]);
   const [draft, setDraft] = useState<EducationContentDraft>(baseline);
   const [tagInput, setTagInput] = useState("");
   const [errors, setErrors] = useState<{ title?: string; majorCategory?: string }>({});
   const [saving, setSaving] = useState(false);
+  const [newMajor, setNewMajor] = useState(false);
   const dirtyRef = useRef(false);
+
+  const allContents = useMemo(() => [...contents, ...archived], [contents, archived]);
+
+  /**
+   * 大項目の選択肢は「実際に登録されている値」から作る。
+   * 固定の一覧だけを出すと、CSVで入れた分類（例：1｜REALIZE CLUB全体）が
+   * 選択肢に無いために、開いただけで別の値へすり替わってしまう。
+   */
+  const majorOptions = useMemo(() => {
+    const fromData = [...new Set(allContents.map((c) => c.majorCategory).filter((v) => v.trim()))].sort(
+      (a, b) => a.localeCompare(b, "ja")
+    );
+    const base = fromData.length > 0 ? fromData : [...MAJOR_CATEGORIES];
+    const current = draft.majorCategory.trim();
+    return current && !base.includes(current) ? [current, ...base] : base;
+  }, [allContents, draft.majorCategory]);
+
+  /** 中項目の候補も、選んだ大項目の中で実際に使われている値から作る。 */
+  const middleSuggestions = useMemo(() => {
+    const inSameMajor = allContents
+      .filter((c) => c.majorCategory === draft.majorCategory)
+      .map((c) => c.middleCategory)
+      .filter((v) => v.trim());
+    return [...new Set(inSameMajor)].sort((a, b) => a.localeCompare(b, "ja"));
+  }, [allContents, draft.majorCategory]);
 
   useEffect(() => setDraft(baseline), [baseline]);
 
@@ -87,9 +113,6 @@ export function ContentForm({ initial, submitLabel, onSubmit, onCancel }: Props)
     }
   };
 
-  const middleSuggestions =
-    MIDDLE_CATEGORY_SUGGESTIONS[draft.majorCategory as MajorCategory] ?? [];
-
   return (
     <form onSubmit={handleSubmit} className="space-y-5 pb-28">
       <Card className="p-5">
@@ -121,18 +144,35 @@ export function ContentForm({ initial, submitLabel, onSubmit, onCancel }: Props)
 
         <div className="grid gap-4 sm:grid-cols-3">
           <Field label="大項目" htmlFor="majorCategory" required error={errors.majorCategory}>
-            <select
-              id="majorCategory"
-              value={draft.majorCategory}
-              onChange={(e) => set("majorCategory", e.target.value)}
-              className={inputClass(Boolean(errors.majorCategory))}
+            {newMajor ? (
+              <input
+                id="majorCategory"
+                value={draft.majorCategory}
+                onChange={(e) => set("majorCategory", e.target.value)}
+                placeholder="新しい大項目の名前"
+                className={inputClass(Boolean(errors.majorCategory))}
+              />
+            ) : (
+              <select
+                id="majorCategory"
+                value={draft.majorCategory}
+                onChange={(e) => set("majorCategory", e.target.value)}
+                className={inputClass(Boolean(errors.majorCategory))}
+              >
+                {majorOptions.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            )}
+            <button
+              type="button"
+              onClick={() => setNewMajor((v) => !v)}
+              className="focus-ring mt-2 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-sm font-bold text-slate-700 hover:bg-slate-50"
             >
-              {MAJOR_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+              {newMajor ? "一覧から選ぶ" : "新しい大項目を入力する"}
+            </button>
           </Field>
 
           <Field label="中項目" htmlFor="middleCategory">

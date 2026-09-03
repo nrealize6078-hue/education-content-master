@@ -144,6 +144,32 @@ export class LocalContentRepository implements ContentRepository {
     writeAll([...created, ...items]);
     return created;
   }
+
+  async bulkUpdate(ids: string[], patch: Partial<EducationContentDraft>): Promise<void> {
+    if (ids.length === 0) return;
+    const target = new Set(ids);
+    const timestamp = now();
+    const next = readAll().map((item) =>
+      target.has(item.id) ? { ...item, ...patch, id: item.id, updatedAt: timestamp } : item
+    );
+    writeAll(next);
+  }
+
+  async bulkArchive(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const target = new Set(ids);
+    const timestamp = now();
+    const next = readAll().map((item) =>
+      target.has(item.id) ? { ...item, archivedAt: timestamp, updatedAt: timestamp } : item
+    );
+    writeAll(next);
+  }
+
+  async bulkHardDelete(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const target = new Set(ids);
+    writeAll(readAll().filter((item) => !target.has(item.id)));
+  }
 }
 
 export const localContentRepository = new LocalContentRepository();

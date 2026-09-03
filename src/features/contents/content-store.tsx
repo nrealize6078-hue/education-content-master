@@ -33,6 +33,9 @@ type ContentStoreValue = {
   restore: (id: string) => Promise<void>;
   hardDelete: (id: string) => Promise<void>;
   bulkCreate: (drafts: EducationContentDraft[]) => Promise<EducationContent[]>;
+  bulkUpdate: (ids: string[], patch: Partial<EducationContentDraft>) => Promise<void>;
+  bulkArchive: (ids: string[]) => Promise<void>;
+  bulkHardDelete: (ids: string[]) => Promise<void>;
   exportAll: () => Promise<EducationContent[]>;
   replaceAll: (items: EducationContent[]) => Promise<void>;
   toasts: Toast[];
@@ -103,6 +106,12 @@ export function ContentStoreProvider({ children }: { children: ReactNode }) {
       hardDelete: (id) => wrap(() => repository.hardDelete(id), "完全に削除しました。"),
       bulkCreate: (drafts) =>
         wrap(() => repository.bulkCreate(drafts), `${drafts.length}件を登録しました。`),
+      bulkUpdate: (ids, patch) =>
+        wrap(() => repository.bulkUpdate(ids, patch), `${ids.length}件を変更しました。`),
+      bulkArchive: (ids) =>
+        wrap(() => repository.bulkArchive(ids), `${ids.length}件をアーカイブしました。`),
+      bulkHardDelete: (ids) =>
+        wrap(() => repository.bulkHardDelete(ids), `${ids.length}件を完全に削除しました。`),
       exportAll: () => repository.exportAll(),
       replaceAll: (items) => wrap(() => repository.replaceAll(items), "バックアップから復元しました。"),
       toasts,
