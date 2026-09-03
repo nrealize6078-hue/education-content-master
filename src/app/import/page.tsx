@@ -4,8 +4,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
-import { downloadCsv } from "@/lib/csv";
-import { parseCsv } from "@/lib/csv";
+import { decodeCsvFile, downloadCsv, parseCsv } from "@/lib/csv";
 import {
   CSV_HEADERS,
   buildCsvTemplate,
@@ -26,7 +25,7 @@ export default function ImportPage() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (file: File) => {
-    const text = await file.text();
+    const text = await decodeCsvFile(file);
     setFileName(file.name);
     setResult(parseCsvForImport(text));
   };
@@ -46,6 +45,12 @@ export default function ImportPage() {
     );
   };
 
+  const reset = () => {
+    setResult(null);
+    setFileName("");
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
   const runImport = async () => {
     if (!result) return;
     const drafts = result.rows.filter((r) => r.draft).map((r) => r.draft!);
@@ -60,9 +65,7 @@ export default function ImportPage() {
     setImporting(true);
     try {
       await bulkCreate(drafts);
-      setResult(null);
-      setFileName("");
-      if (inputRef.current) inputRef.current.value = "";
+      reset();
       router.push("/");
     } finally {
       setImporting(false);
@@ -82,24 +85,13 @@ export default function ImportPage() {
       <div>
         <h1 className="text-2xl font-bold text-[#0e2245]">CSVで教材をまとめて登録</h1>
         <p className="mt-1 text-slate-600">
-          既存の資料一覧をCSVにして、一度にまとめて登録できます。文字コードはUTF-8に対応しています。
+          既存の資料一覧をCSVにして、一度にまとめて登録できます。
+          <strong>Excelの「資料MASTER」をそのままCSV保存したファイルも読み込めます。</strong>
         </p>
       </div>
 
       <Card className="p-5">
-        <h2 className="mb-3 text-lg font-bold text-[#0e2245]">1. テンプレートを用意する</h2>
-        <p className="mb-4 text-slate-600">
-          列の並びは <strong>{CSV_HEADERS.join("／")}</strong> です。
-          必須は「タイトル」と「大項目」の2つだけです。
-        </p>
-        <div className="flex flex-wrap gap-3">
-          <Button onClick={downloadTemplate}>CSVテンプレートを書き出す</Button>
-          <Button onClick={exportAllCsv}>現在の全データをCSVで書き出す</Button>
-        </div>
-      </Card>
-
-      <Card className="p-5">
-        <h2 className="mb-3 text-lg font-bold text-[#0e2245]">2. CSVファイルを選ぶ</h2>
+        <h2 className="mb-3 text-lg font-bold text-[#0e2245]">1. CSVファイルを選ぶ</h2>
         <input
           ref={inputRef}
           type="file"
@@ -113,19 +105,42 @@ export default function ImportPage() {
         {fileName ? (
           <p className="mt-2 text-sm text-slate-600">選択中のファイル：{fileName}</p>
         ) : null}
+        <ul className="mt-3 space-y-1 text-sm text-slate-500">
+          <li>・見出し行の位置は自動で探します（Excelのタイトル行や説明行があっても大丈夫です）</li>
+          <li>・列は名前で対応づけます。「資料名」「大分類」「中分類」などの言い方でも読み取れます</li>
+          <li>・文字コードはUTF-8・Shift-JISのどちらでも構いません</li>
+          <li>・空の行は自動で飛ばします</li>
+        </ul>
       </Card>
 
       {result ? (
         <Card className="p-5">
-          <h2 className="mb-3 text-lg font-bold text-[#0e2245]">3. 読み込み前プレビュー</h2>
+          <h2 className="mb-3 text-lg font-bold text-[#0e2245]">2. 読み込み前プレビュー</h2>
+
+          {result.headerRowNumber ? (
+            <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-[15px] text-emerald-900">
+              <p className="font-bold">
+                {result.headerRowNumber}行目を見出し行として認識しました
+              </p>
+              {result.recognizedColumns.length > 0 ? (
+                <p className="mt-1 text-sm break-words">
+                  読み取れた列：{result.recognizedColumns.join("／")}
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-[15px] font-bold text-amber-900">
+              見出し行が見つかりませんでした。列の並び順どおりに読み取っています。
+            </div>
+          )}
 
           <div className="mb-4 flex flex-wrap gap-3">
-            <span className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 font-bold text-emerald-900">
+            <span className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 font-bold whitespace-nowrap text-emerald-900">
               登録できる行：{result.validCount}件
             </span>
             <span
               className={cn(
-                "rounded-lg border px-4 py-2 font-bold",
+                "rounded-lg border px-4 py-2 font-bold whitespace-nowrap",
                 result.errorCount > 0
                   ? "border-red-300 bg-red-50 text-red-800"
                   : "border-slate-300 bg-slate-50 text-slate-600"
@@ -133,6 +148,11 @@ export default function ImportPage() {
             >
               エラー行：{result.errorCount}件
             </span>
+            {result.skippedCount > 0 ? (
+              <span className="rounded-lg border border-slate-300 bg-slate-50 px-4 py-2 font-bold whitespace-nowrap text-slate-600">
+                空行として除外：{result.skippedCount}件
+              </span>
+            ) : null}
           </div>
 
           {result.rows.length === 0 ? (
@@ -141,15 +161,15 @@ export default function ImportPage() {
             </p>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-slate-200">
-              <table className="w-full min-w-[860px] border-collapse text-left text-[15px]">
+              <table className="w-full min-w-[920px] border-collapse text-left text-[15px]">
                 <thead className="bg-slate-100">
                   <tr>
-                    <th className="px-3 py-2 font-bold whitespace-nowrap">行</th>
-                    <th className="px-3 py-2 font-bold">タイトル</th>
-                    <th className="px-3 py-2 font-bold">大項目</th>
-                    <th className="px-3 py-2 font-bold">中項目</th>
-                    <th className="px-3 py-2 font-bold">小項目</th>
-                    <th className="px-3 py-2 font-bold">判定</th>
+                    <th className="w-[6%] px-3 py-2 font-bold whitespace-nowrap">行</th>
+                    <th className="w-[34%] px-3 py-2 font-bold">タイトル</th>
+                    <th className="w-[17%] px-3 py-2 font-bold">大項目</th>
+                    <th className="w-[13%] px-3 py-2 font-bold">中項目</th>
+                    <th className="w-[12%] px-3 py-2 font-bold">小項目</th>
+                    <th className="w-[18%] px-3 py-2 font-bold">判定</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -159,12 +179,12 @@ export default function ImportPage() {
                       className={cn("border-t border-slate-200", row.error && "bg-red-50")}
                     >
                       <td className="px-3 py-2 tabular-nums">{row.rowNumber}</td>
-                      <td className="max-w-[280px] truncate px-3 py-2" title={row.raw[0]}>
-                        {row.raw[0] || "—"}
+                      <td className="max-w-[300px] truncate px-3 py-2" title={row.preview.title}>
+                        {row.preview.title || "—"}
                       </td>
-                      <td className="px-3 py-2">{row.raw[2] || "—"}</td>
-                      <td className="px-3 py-2">{row.raw[3] || "—"}</td>
-                      <td className="px-3 py-2">{row.raw[4] || "—"}</td>
+                      <td className="px-3 py-2">{row.preview.major || "—"}</td>
+                      <td className="px-3 py-2">{row.preview.middle || "—"}</td>
+                      <td className="px-3 py-2">{row.preview.small || "—"}</td>
                       <td className="px-3 py-2">
                         {row.error ? (
                           <span className="font-bold text-red-700">{row.error}</span>
@@ -201,15 +221,7 @@ export default function ImportPage() {
           ) : null}
 
           <div className="mt-5 flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-4">
-            <Button
-              onClick={() => {
-                setResult(null);
-                setFileName("");
-                if (inputRef.current) inputRef.current.value = "";
-              }}
-            >
-              取り消す
-            </Button>
+            <Button onClick={reset}>取り消す</Button>
             <Button
               variant="primary"
               onClick={runImport}
@@ -220,6 +232,18 @@ export default function ImportPage() {
           </div>
         </Card>
       ) : null}
+
+      <Card className="p-5">
+        <h2 className="mb-3 text-lg font-bold text-[#0e2245]">書き出し</h2>
+        <p className="mb-4 text-slate-600">
+          テンプレートの列は <strong>{CSV_HEADERS.join("／")}</strong> です。
+          必須は「タイトル」と「大項目」の2つだけです。
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={downloadTemplate}>CSVテンプレートを書き出す</Button>
+          <Button onClick={exportAllCsv}>現在の全データをCSVで書き出す</Button>
+        </div>
+      </Card>
     </div>
   );
 }

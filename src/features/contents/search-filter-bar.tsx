@@ -56,6 +56,14 @@ export function SearchFilterBar({
       ),
     [contents]
   );
+  // CSVで取り込んだ独自の大項目名（例：「1｜REALIZE CLUB全体」）も選べるようにする
+  const majorOptions = useMemo(() => {
+    const fromData = contents.map((c) => c.majorCategory).filter((v) => v.trim());
+    const extra = [...new Set(fromData)]
+      .filter((v) => !(MAJOR_CATEGORIES as readonly string[]).includes(v))
+      .sort((a, b) => a.localeCompare(b, "ja"));
+    return [...MAJOR_CATEGORIES, ...extra];
+  }, [contents]);
   const ownerOptions = useMemo(
     () =>
       [...new Set(contents.map((c) => c.owner).filter((v) => v.trim()))].sort((a, b) =>
@@ -87,7 +95,7 @@ export function SearchFilterBar({
   };
 
   const groups: Array<{ key: FilterKey; options: readonly string[] }> = [
-    { key: "majorCategory", options: MAJOR_CATEGORIES },
+    { key: "majorCategory", options: majorOptions },
     { key: "middleCategory", options: middleOptions },
     { key: "status", options: CONTENT_STATUSES },
     { key: "audience", options: AUDIENCES },

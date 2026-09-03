@@ -75,6 +75,33 @@ function escapeCsvField(value: string): string {
   return value;
 }
 
+/**
+ * CSVファイルを文字コードを推測しながら文字列にする。
+ * Excelの「CSV UTF-8」はBOM付きUTF-8、ふつうの「CSV」は日本語WindowsだとShift-JIS。
+ * どちらで保存されていても読めるようにする。
+ */
+export async function decodeCsvFile(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+
+  // BOM付きUTF-8はそのまま
+  if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    return new TextDecoder("utf-8").decode(bytes);
+  }
+
+  // BOMなし。まずUTF-8として厳密に読み、壊れていればShift-JISとみなす
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    try {
+      return new TextDecoder("shift_jis").decode(bytes);
+    } catch {
+      // どちらでも読めない場合は、文字化けを許容してUTF-8で読む
+      return new TextDecoder("utf-8").decode(bytes);
+    }
+  }
+}
+
 export function toCsv(rows: string[][]): string {
   return rows.map((row) => row.map(escapeCsvField).join(",")).join("\r\n");
 }
