@@ -14,6 +14,7 @@ import { APP_TAGLINE } from "@/lib/constants";
 import { LoadingState } from "@/components/ui";
 import { useContentStore } from "@/features/contents/content-store";
 import { applyFilters, sortContents } from "@/features/contents/filter-utils";
+import { useStickyList } from "@/features/contents/use-sticky-list";
 import { Dashboard } from "@/features/contents/dashboard";
 import { SearchFilterBar } from "@/features/contents/search-filter-bar";
 import { ContentList } from "@/features/contents/content-list";
@@ -38,10 +39,14 @@ export default function HomePage() {
   const [deleteTarget, setDeleteTarget] = useState<EducationContent | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const visible = useMemo(
+  const base = useMemo(
     () => sortContents(applyFilters(contents, filters), sort),
     [contents, filters, sort]
   );
+
+  // 変更した行が絞り込みや並び順のせいで消えないようにする
+  const resetKey = useMemo(() => `${JSON.stringify(filters)}|${sort}`, [filters, sort]);
+  const { items: visible, outOfFilterIds, markSticky } = useStickyList(base, contents, resetKey);
 
   /** 大項目の選択肢は実際に登録されている値から作る（固定一覧だと分類がすり替わる） */
   const majorOptions = useMemo(() => {
@@ -142,6 +147,8 @@ export default function HomePage() {
               <p className="text-sm text-slate-500">
                 タイトルの ✎ を押すとその場で書き換えられます。状態と大項目は一覧の欄から直接変更できます。
                 左端のチェックを付けると、まとめて変更・削除ができます。
+                <br className="hidden sm:block" />
+                変更した行は、絞り込み条件から外れても並び順が変わっても、その場に残ります。
               </p>
               <ContentList
                 contents={visible}
@@ -149,7 +156,11 @@ export default function HomePage() {
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelect}
                 onToggleSelectAll={toggleSelectAll}
-                onInlineUpdate={(id, patch) => void update(id, patch)}
+                onInlineUpdate={(id, patch) => {
+                  markSticky([id]);
+                  void update(id, patch);
+                }}
+                outOfFilterIds={outOfFilterIds}
                 onDuplicate={(id) => void duplicate(id)}
                 onArchive={(id) => void archive(id)}
                 onHardDelete={setDeleteTarget}
@@ -163,8 +174,14 @@ export default function HomePage() {
         selectedCount={selectedIds.size}
         majorOptions={majorOptions}
         onClearSelection={() => setSelectedIds(new Set())}
-        onChangeStatus={(status) => void bulkUpdate(ids, { status })}
-        onChangeMajor={(majorCategory) => void bulkUpdate(ids, { majorCategory })}
+        onChangeStatus={(status) => {
+          markSticky(ids);
+          void bulkUpdate(ids, { status });
+        }}
+        onChangeMajor={(majorCategory) => {
+          markSticky(ids);
+          void bulkUpdate(ids, { majorCategory });
+        }}
         onArchive={async () => {
           await bulkArchive(ids);
           setSelectedIds(new Set());

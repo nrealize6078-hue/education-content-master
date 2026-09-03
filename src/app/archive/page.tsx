@@ -12,6 +12,7 @@ import {
 import { LoadingState } from "@/components/ui";
 import { useContentStore } from "@/features/contents/content-store";
 import { applyFilters, sortContents } from "@/features/contents/filter-utils";
+import { useStickyList } from "@/features/contents/use-sticky-list";
 import { SearchFilterBar } from "@/features/contents/search-filter-bar";
 import { ContentList } from "@/features/contents/content-list";
 import { BulkActionBar } from "@/features/contents/bulk-action-bar";
@@ -34,10 +35,13 @@ export default function ArchivePage() {
   const [deleteTarget, setDeleteTarget] = useState<EducationContent | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const visible = useMemo(
+  const base = useMemo(
     () => sortContents(applyFilters(archived, filters), sort),
     [archived, filters, sort]
   );
+
+  const resetKey = useMemo(() => `${JSON.stringify(filters)}|${sort}`, [filters, sort]);
+  const { items: visible, outOfFilterIds, markSticky } = useStickyList(base, archived, resetKey);
 
   const majorOptions = useMemo(() => {
     const fromData = [...new Set([...contents, ...archived].map((c) => c.majorCategory).filter((v) => v.trim()))];
@@ -110,7 +114,11 @@ export default function ArchivePage() {
             selectedIds={selectedIds}
             onToggleSelect={toggleSelect}
             onToggleSelectAll={toggleSelectAll}
-            onInlineUpdate={(id, patch) => void update(id, patch)}
+            onInlineUpdate={(id, patch) => {
+              markSticky([id]);
+              void update(id, patch);
+            }}
+            outOfFilterIds={outOfFilterIds}
             onDuplicate={(id) => void duplicate(id)}
             onRestore={(id) => void restore(id)}
             onHardDelete={setDeleteTarget}
@@ -122,8 +130,14 @@ export default function ArchivePage() {
         selectedCount={selectedIds.size}
         majorOptions={majorOptions}
         onClearSelection={() => setSelectedIds(new Set())}
-        onChangeStatus={(status) => void bulkUpdate(ids, { status })}
-        onChangeMajor={(majorCategory) => void bulkUpdate(ids, { majorCategory })}
+        onChangeStatus={(status) => {
+          markSticky(ids);
+          void bulkUpdate(ids, { status });
+        }}
+        onChangeMajor={(majorCategory) => {
+          markSticky(ids);
+          void bulkUpdate(ids, { majorCategory });
+        }}
         onRestore={async () => {
           for (const id of ids) await restore(id);
           setSelectedIds(new Set());

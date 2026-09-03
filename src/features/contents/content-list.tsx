@@ -17,6 +17,8 @@ type Props = {
   onToggleSelect: (id: string) => void;
   onToggleSelectAll: () => void;
   onInlineUpdate: (id: string, patch: Partial<EducationContent>) => void;
+  /** 絞り込み条件から外れたが、変更直後なので表示し続けている行 */
+  outOfFilterIds?: Set<string>;
   onDuplicate: (id: string) => void;
   onArchive?: (id: string) => void;
   onRestore?: (id: string) => void;
@@ -32,6 +34,7 @@ export function ContentList({
   onToggleSelect,
   onToggleSelectAll,
   onInlineUpdate,
+  outOfFilterIds,
   onDuplicate,
   onArchive,
   onRestore,
@@ -81,7 +84,11 @@ export function ContentList({
                   key={content.id}
                   className={cn(
                     "border-t border-slate-200 align-middle transition",
-                    selectedIds.has(content.id) ? "bg-[#e4f0e9]" : "hover:bg-[#f3f7f4]"
+                    selectedIds.has(content.id)
+                      ? "bg-[#e4f0e9]"
+                      : outOfFilterIds?.has(content.id)
+                        ? "bg-amber-50"
+                        : "hover:bg-[#f3f7f4]"
                   )}
                 >
                   <td className="px-3 py-3">
@@ -102,6 +109,7 @@ export function ContentList({
                     {content.owner ? (
                       <p className="mt-0.5 text-sm text-slate-500">担当：{content.owner}</p>
                     ) : null}
+                    {outOfFilterIds?.has(content.id) ? <OutOfFilterNote /> : null}
                   </td>
                   <td className="px-4 py-3">
                     <select
@@ -186,7 +194,9 @@ export function ContentList({
               "rounded-xl border p-4 shadow-sm transition",
               selectedIds.has(content.id)
                 ? "border-[#0f5c3f] bg-[#e4f0e9]"
-                : "border-slate-200 bg-white"
+                : outOfFilterIds?.has(content.id)
+                  ? "border-amber-300 bg-amber-50"
+                  : "border-slate-200 bg-white"
             )}
           >
             <div className="flex items-start gap-3">
@@ -204,6 +214,7 @@ export function ContentList({
                   onOpen={() => openDetail(content.id)}
                   large
                 />
+                {outOfFilterIds?.has(content.id) ? <OutOfFilterNote /> : null}
               </div>
               <ActionMenu
                 content={content}
@@ -266,6 +277,15 @@ export function ContentList({
         ))}
       </div>
     </>
+  );
+}
+
+/** 絞り込みから外れた行に添える説明。理由が分からないまま消えるのを防ぐ。 */
+function OutOfFilterNote() {
+  return (
+    <p className="mt-1 inline-flex items-start rounded-md bg-amber-100 px-2 py-1 text-sm font-bold text-amber-900">
+      いまの絞り込み条件からは外れましたが、変更したばかりなので表示しています
+    </p>
   );
 }
 
