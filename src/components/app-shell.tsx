@@ -12,6 +12,7 @@ import { ToastArea } from "./ui";
 
 const NAV = [
   { href: "/", label: "ホーム" },
+  { href: "/manual", label: "使い方" },
   { href: "/categories", label: "分類の管理" },
   { href: "/import", label: "CSV取り込み" },
   { href: "/backup", label: "バックアップ" },

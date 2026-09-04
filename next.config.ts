@@ -11,6 +11,8 @@ const basePath = isPagesBuild ? "/education-content-master" : "";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // 画像などをふつうの <img> で読むときに、公開先の基準パスを付けられるようにする
+  env: { NEXT_PUBLIC_BASE_PATH: basePath },
   // C:\Users\realize5\package-lock.json が存在するため、Next.js が
   // ワークスペースのルートをそちらと誤認して警告を出す。
   // このプロジェクト自身をルートとして明示することで回避する。

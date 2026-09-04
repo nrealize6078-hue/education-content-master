@@ -11,6 +11,7 @@ import { useContentStore } from "@/features/contents/content-store";
 const PAGES = [
   { href: "/", label: "ホーム（大項目から探す）" },
   { href: "/contents/new", label: "＋ 新しい教材を登録" },
+  { href: "/manual", label: "使い方（操作マニュアル）" },
   { href: "/categories", label: "分類の管理" },
   { href: "/import", label: "CSV取り込み" },
   { href: "/backup", label: "バックアップ" },
