@@ -15,7 +15,7 @@ import {
   valueOf,
   type CategoryOrder,
 } from "@/lib/category-order";
-import type { EducationContent } from "@/types/content";
+import { allMajorCategories, type EducationContent } from "@/types/content";
 
 type Level = "major" | "middle" | "small";
 type Target = { level: Level; major: string; middle?: string; name: string };
@@ -55,7 +55,7 @@ export default function CategoriesPage() {
     if (next === "" || next === target.name) return;
 
     const matches = (c: EducationContent): boolean => {
-      if (labelOf(c.majorCategory) !== target.major) return false;
+      if (!allMajorCategories(c).includes(target.major)) return false;
       if (target.level === "major") return true;
       if (labelOf(c.middleCategory) !== (target.level === "middle" ? target.name : target.middle))
         return false;
@@ -63,19 +63,33 @@ export default function CategoriesPage() {
       return labelOf(c.smallCategory) === target.name;
     };
 
-    const ids = all.filter(matches).map((c) => c.id);
+    const targets = all.filter(matches);
+    const ids = targets.map((c) => c.id);
     if (ids.length === 0) return;
-
-    const field =
-      target.level === "major"
-        ? "majorCategory"
-        : target.level === "middle"
-          ? "middleCategory"
-          : "smallCategory";
 
     setBusy(true);
     try {
-      await bulkUpdate(ids, { [field]: valueOf(next) });
+      if (target.level === "major") {
+        // 主の大項目として使っている分と、横断分とで書き換え先が違うので分けて行う
+        const asPrimary = targets.filter((c) => c.majorCategory.trim() === valueOf(target.name));
+        const asExtra = targets.filter((c) => c.majorCategory.trim() !== valueOf(target.name));
+        if (asPrimary.length > 0) {
+          await bulkUpdate(
+            asPrimary.map((c) => c.id),
+            { majorCategory: valueOf(next) }
+          );
+        }
+        for (const content of asExtra) {
+          await bulkUpdate([content.id], {
+            additionalMajorCategories: content.additionalMajorCategories.map((v) =>
+              v.trim() === valueOf(target.name) ? valueOf(next) : v
+            ),
+          });
+        }
+      } else {
+        const field = target.level === "middle" ? "middleCategory" : "smallCategory";
+        await bulkUpdate(ids, { [field]: valueOf(next) });
+      }
       await setCategoryOrder(
         renameInOrder(
           categoryOrder,

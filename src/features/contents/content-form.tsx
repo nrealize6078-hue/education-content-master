@@ -75,7 +75,16 @@ export function ContentForm({ initial, submitLabel, onSubmit, onCancel }: Props)
   }, []);
 
   const set = <K extends keyof EducationContentDraft>(key: K, value: EducationContentDraft[K]) => {
-    setDraft((prev) => ({ ...prev, [key]: value }));
+    setDraft((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === "majorCategory") {
+        // 主の大項目と同じものを横断分に残さない
+        next.additionalMajorCategories = prev.additionalMajorCategories.filter(
+          (v) => v !== value
+        );
+      }
+      return next;
+    });
     // 入力し直した項目のエラー表示はその場で消す
     if (key === "title" || key === "majorCategory") {
       setErrors((prev) => ({ ...prev, [key]: undefined }));
@@ -175,6 +184,68 @@ export function ContentForm({ initial, submitLabel, onSubmit, onCancel }: Props)
             </button>
           </Field>
 
+          <Field
+            label="横断して入れる大項目"
+            htmlFor="additionalMajorCategories"
+            hint="この資料を他の大項目にも並べたいときに選びます。いくつでも選べます。"
+          >
+            <div className="space-y-2">
+              {draft.additionalMajorCategories.length > 0 ? (
+                <ul className="flex flex-wrap gap-2">
+                  {draft.additionalMajorCategories.map((name) => (
+                    <li
+                      key={name}
+                      className="inline-flex items-center gap-1 rounded-lg border border-[#0f5c3f] bg-[#e4f0e9] py-1 pr-1 pl-3 text-sm font-bold text-[#0f5c3f]"
+                    >
+                      {name}
+                      <button
+                        type="button"
+                        aria-label={`${name} を外す`}
+                        title={`${name} を外す`}
+                        onClick={() =>
+                          set(
+                            "additionalMajorCategories",
+                            draft.additionalMajorCategories.filter((v) => v !== name)
+                          )
+                        }
+                        className="focus-ring rounded px-1.5 text-base leading-none text-[#0f5c3f] hover:bg-[#c9e0d3]"
+                      >
+                        ×
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-slate-500">まだ選ばれていません。</p>
+              )}
+              <select
+                id="additionalMajorCategories"
+                value=""
+                onChange={(e) => {
+                  const value = e.target.value;
+                  e.target.value = "";
+                  if (!value) return;
+                  set("additionalMajorCategories", [
+                    ...new Set([...draft.additionalMajorCategories, value]),
+                  ]);
+                }}
+                className={inputClass(false)}
+              >
+                <option value="">＋ 大項目を追加する…</option>
+                {majorOptions
+                  .filter(
+                    (c) =>
+                      c !== draft.majorCategory && !draft.additionalMajorCategories.includes(c)
+                  )
+                  .map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </Field>
+
           <Field label="中項目" htmlFor="middleCategory">
             <input
               id="middleCategory"
@@ -219,7 +290,11 @@ export function ContentForm({ initial, submitLabel, onSubmit, onCancel }: Props)
         <p className="mb-4 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
           表示イメージ：
           <span className="ml-1 font-bold text-[#0e2245]">
-            {draft.majorCategory || "未設定"} ＞ {draft.middleCategory || "未設定"} ＞{" "}
+            {draft.majorCategory || "未設定"}
+            {draft.additionalMajorCategories.length > 0
+              ? `（＋${draft.additionalMajorCategories.join("、")}）`
+              : ""}{" "}
+            ＞ {draft.middleCategory || "未設定"} ＞{" "}
             {draft.smallCategory || "未設定"}
           </span>
         </p>

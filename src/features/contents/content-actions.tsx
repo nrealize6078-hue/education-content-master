@@ -8,6 +8,32 @@ import type { EducationContent } from "@/types/content";
 import { Button } from "@/components/ui";
 
 /** 「大項目 ＞ 中項目 ＞ 小項目」をこの順で表示する。未設定は明示する。 */
+/** 横断して入れている大項目を並べる印 */
+export function CrossMajorTags({
+  content,
+  className,
+}: {
+  content: EducationContent;
+  className?: string;
+}) {
+  const extra = (content.additionalMajorCategories ?? []).filter((v) => v.trim());
+  if (extra.length === 0) return null;
+  return (
+    <span className={cn("inline-flex flex-wrap items-center gap-1", className)}>
+      <span className="text-sm text-slate-500">＋</span>
+      {extra.map((name) => (
+        <span
+          key={name}
+          title={`この資料は「${name}」にも入っています`}
+          className="rounded-md border border-[#0f5c3f]/40 bg-[#e4f0e9] px-1.5 py-0.5 text-sm font-bold text-[#0f5c3f]"
+        >
+          {name}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export function CategoryPath({
   content,
   className,

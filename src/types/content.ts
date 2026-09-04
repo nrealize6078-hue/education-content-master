@@ -25,6 +25,7 @@ export const CONTENT_STATUSES = [
   "整理中",
   "制作中",
   "要修正",
+  "要更新",
   "完成",
   "保留",
 ] as const;
@@ -107,8 +108,10 @@ export type EducationContent = {
   id: string;
   title: string;
   summary: string;
-  /** 大項目 */
+  /** 大項目（主。並び順やカードの所属先はこれを基準にする） */
   majorCategory: string;
+  /** 主の大項目に加えて、横断して所属させる大項目 */
+  additionalMajorCategories: string[];
   /** 中項目 */
   middleCategory: string;
   /** 小項目 */
@@ -131,6 +134,17 @@ export type EducationContent = {
   archivedAt: string | null;
 };
 
+/** その資料が属するすべての大項目（主＋横断分）。重複と空欄は取り除く。 */
+export function allMajorCategories(content: {
+  majorCategory: string;
+  additionalMajorCategories?: string[];
+}): string[] {
+  const list = [content.majorCategory, ...(content.additionalMajorCategories ?? [])]
+    .map((v) => v.trim())
+    .filter((v) => v !== "");
+  return [...new Set(list)];
+}
+
 /** 新規登録時に必須なのはタイトルと大項目のみ。他は空でも仮登録できる。 */
 export type EducationContentDraft = Omit<
   EducationContent,
@@ -142,6 +156,7 @@ export function createEmptyDraft(): EducationContentDraft {
     title: "",
     summary: "",
     majorCategory: "分類待ち",
+    additionalMajorCategories: [],
     middleCategory: "",
     smallCategory: "",
     audience: [],

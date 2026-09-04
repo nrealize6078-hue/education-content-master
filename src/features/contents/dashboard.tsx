@@ -57,6 +57,13 @@ export function Dashboard({
       hint: "要修正だけ表示",
     },
     {
+      label: "要更新",
+      value: summary.byStatus.要更新,
+      onClick: () => onSelectStatus("要更新"),
+      tone: "border-orange-300 bg-orange-50 text-orange-900",
+      hint: "要更新だけ表示",
+    },
+    {
       label: "分類待ち",
       value: summary.unclassified,
       onClick: onSelectUnclassified,

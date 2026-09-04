@@ -10,6 +10,8 @@ type Props = {
   onClearSelection: () => void;
   onChangeStatus: (status: ContentStatus) => void;
   onChangeMajor: (major: string) => void;
+  /** 主の大項目はそのままに、横断分として大項目を足す */
+  onAddMajor: (major: string) => void;
   onArchive?: () => void;
   onRestore?: () => void;
   onHardDelete: () => void;
@@ -22,6 +24,7 @@ export function BulkActionBar({
   onClearSelection,
   onChangeStatus,
   onChangeMajor,
+  onAddMajor,
   onArchive,
   onRestore,
   onHardDelete,
@@ -70,6 +73,27 @@ export function BulkActionBar({
               className="focus-ring min-h-[40px] w-full max-w-[240px] min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[15px]"
             >
               <option value="">まとめて変更…</option>
+              {majorOptions.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
+            <span className="text-sm font-bold whitespace-nowrap text-slate-700">大項目を</span>
+            <select
+              defaultValue=""
+              onChange={(e) => {
+                const v = e.target.value;
+                e.target.value = "";
+                if (v) onAddMajor(v);
+              }}
+              title="いまの大項目はそのままに、選んだ大項目にも並ぶようにします"
+              className="focus-ring min-h-[40px] w-full max-w-[240px] min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-[15px] sm:w-auto"
+            >
+              <option value="">まとめて追加…（横断）</option>
               {majorOptions.map((m) => (
                 <option key={m} value={m}>
                   {m}

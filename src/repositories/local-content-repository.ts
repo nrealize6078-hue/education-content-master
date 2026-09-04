@@ -8,6 +8,13 @@ function isBrowser(): boolean {
   return typeof window !== "undefined";
 }
 
+/** 横断用の大項目は後から足した項目なので、古いデータには入っていない */
+function normalize(item: EducationContent): EducationContent {
+  return Array.isArray(item.additionalMajorCategories)
+    ? item
+    : { ...item, additionalMajorCategories: [] };
+}
+
 function readAll(): EducationContent[] {
   if (!isBrowser()) return [];
   try {
@@ -15,7 +22,7 @@ function readAll(): EducationContent[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed as EducationContent[];
+    return (parsed as EducationContent[]).map(normalize);
   } catch {
     return [];
   }

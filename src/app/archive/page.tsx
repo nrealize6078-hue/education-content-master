@@ -139,6 +139,22 @@ export default function ArchivePage() {
           markSticky(ids);
           void bulkUpdate(ids, { majorCategory });
         }}
+        onAddMajor={(majorCategory) => {
+          markSticky(ids);
+          void (async () => {
+            for (const id of ids) {
+              const item = archived.find((c) => c.id === id);
+              if (!item || item.majorCategory === majorCategory) continue;
+              if (item.additionalMajorCategories.includes(majorCategory)) continue;
+              await bulkUpdate([id], {
+                additionalMajorCategories: [
+                  ...item.additionalMajorCategories,
+                  majorCategory,
+                ],
+              });
+            }
+          })();
+        }}
         onRestore={async () => {
           for (const id of ids) await restore(id);
           setSelectedIds(new Set());

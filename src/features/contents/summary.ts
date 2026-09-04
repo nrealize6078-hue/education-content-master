@@ -21,6 +21,7 @@ export function buildSummary(contents: EducationContent[]): Summary {
     整理中: 0,
     制作中: 0,
     要修正: 0,
+    要更新: 0,
     完成: 0,
     保留: 0,
   };

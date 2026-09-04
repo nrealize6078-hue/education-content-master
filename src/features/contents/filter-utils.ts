@@ -1,4 +1,4 @@
-import type { ContentFilters, EducationContent, SortOrder } from "@/types/content";
+import { allMajorCategories, type ContentFilters, type EducationContent, type SortOrder } from "@/types/content";
 import { includesKeyword } from "@/lib/search";
 import {
   emptyCategoryOrder,
@@ -22,7 +22,7 @@ export function contentMatchesKeyword(content: EducationContent, keyword: string
   const haystacks = [
     content.title,
     content.summary,
-    content.majorCategory,
+    allMajorCategories(content).join(" "),
     content.middleCategory,
     content.smallCategory,
     content.tags.join(" "),
@@ -42,7 +42,7 @@ export function applyFilters(
 ): EducationContent[] {
   return contents.filter((content) => {
     if (!contentMatchesKeyword(content, filters.keyword)) return false;
-    if (!matchesArrayFilter(content.majorCategory, filters.majorCategory)) return false;
+    if (!matchesMultiFilter(allMajorCategories(content), filters.majorCategory)) return false;
     if (!matchesArrayFilter(content.middleCategory, filters.middleCategory)) return false;
     if (!matchesArrayFilter(content.status, filters.status)) return false;
     if (!matchesArrayFilter(content.materialFormat, filters.materialFormat)) return false;

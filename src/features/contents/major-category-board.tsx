@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { STATUS_STYLES } from "@/lib/constants";
-import type { ContentStatus, EducationContent } from "@/types/content";
+import { allMajorCategories, type ContentStatus, type EducationContent } from "@/types/content";
 import { ProgressBar } from "@/components/ui";
 import {
   emptyCategoryOrder,
@@ -38,10 +38,13 @@ export function MajorCategoryBoard({
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, EducationContent[]>();
     for (const content of contents) {
-      const key = labelOf(content.majorCategory);
-      const list = map.get(key) ?? [];
-      list.push(content);
-      map.set(key, list);
+      // 横断して入れている大項目にも、同じ資料を数える
+      const keys = allMajorCategories(content);
+      for (const key of keys.length > 0 ? keys : [labelOf(content.majorCategory)]) {
+        const list = map.get(key) ?? [];
+        list.push(content);
+        map.set(key, list);
+      }
     }
     const compareMajor = makeComparator(categoryOrder.major);
     return [...map.entries()]

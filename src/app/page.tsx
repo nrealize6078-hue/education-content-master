@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   CONTENT_STATUSES,
   MAJOR_CATEGORIES,
+  allMajorCategories,
   createEmptyFilters,
   type ContentFilters,
   type ContentStatus,
@@ -12,7 +13,6 @@ import {
   type SortOrder,
 } from "@/types/content";
 import { APP_TAGLINE } from "@/lib/constants";
-import { labelOf } from "@/lib/category-order";
 import { LoadingState } from "@/components/ui";
 import { useContentStore } from "@/features/contents/content-store";
 import { applyFilters, sortContents } from "@/features/contents/filter-utils";
@@ -58,7 +58,7 @@ export default function HomePage() {
     () =>
       selectedMajor === null
         ? contents
-        : contents.filter((c) => labelOf(c.majorCategory) === selectedMajor),
+        : contents.filter((c) => allMajorCategories(c).includes(selectedMajor)),
     [contents, selectedMajor]
   );
 
@@ -281,6 +281,22 @@ export default function HomePage() {
         onChangeMajor={(majorCategory) => {
           markSticky(ids);
           void bulkUpdate(ids, { majorCategory });
+        }}
+        onAddMajor={(majorCategory) => {
+          markSticky(ids);
+          void (async () => {
+            for (const id of ids) {
+              const item = contents.find((c) => c.id === id);
+              if (!item || item.majorCategory === majorCategory) continue;
+              if (item.additionalMajorCategories.includes(majorCategory)) continue;
+              await bulkUpdate([id], {
+                additionalMajorCategories: [
+                  ...item.additionalMajorCategories,
+                  majorCategory,
+                ],
+              });
+            }
+          })();
         }}
         onArchive={async () => {
           await bulkArchive(ids);

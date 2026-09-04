@@ -8,7 +8,7 @@ import { formatDate } from "@/lib/format";
 import { STATUS_STYLES } from "@/lib/constants";
 import { CONTENT_STATUSES, type ContentStatus, type EducationContent } from "@/types/content";
 import { EmptyState, ProgressBar } from "@/components/ui";
-import { ActionMenu, CategoryPath, OpenSourceButton } from "./content-actions";
+import { ActionMenu, CategoryPath, CrossMajorTags, OpenSourceButton } from "./content-actions";
 
 type Props = {
   contents: EducationContent[];
@@ -125,6 +125,7 @@ export function ContentList({
                         </option>
                       ))}
                     </select>
+                    <CrossMajorTags content={content} className="mb-1" />
                     <CategoryPath content={content} hideMajor />
                   </td>
                   <td className="px-3 py-3 text-[15px] break-words text-slate-700">{content.materialFormat}</td>
@@ -239,6 +240,7 @@ export function ContentList({
                   </option>
                 ))}
               </select>
+              <CrossMajorTags content={content} className="mt-1" />
               <CategoryPath content={content} hideMajor />
             </div>
 

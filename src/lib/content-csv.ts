@@ -19,6 +19,7 @@ export const CSV_HEADERS = [
   "タイトル",
   "概要",
   "大項目",
+  "他の大項目",
   "中項目",
   "小項目",
   "対象者",
@@ -47,6 +48,7 @@ type FieldKey =
   | "title"
   | "summary"
   | "major"
+  | "otherMajors"
   | "middle"
   | "small"
   | "audience"
@@ -68,6 +70,8 @@ const COLUMN_ALIASES: Record<FieldKey, string[]> = {
   title: ["タイトル", "資料名", "教材名", "コンテンツ名", "名称"],
   summary: ["概要", "目的・内容", "目的内容", "内容", "説明"],
   major: ["大項目", "大分類", "カテゴリ"],
+  // 1つの資料を複数の大項目に入れたいときの追加分
+  otherMajors: ["他の大項目", "追加の大項目", "横断する大項目", "大項目2", "副大項目"],
   middle: ["中項目", "中分類", "サブカテゴリ"],
   small: ["小項目", "小分類"],
   audience: ["対象者", "対象"],
@@ -157,6 +161,7 @@ export function contentToCsvRow(content: EducationContent): string[] {
     content.title,
     content.summary,
     content.majorCategory,
+    content.additionalMajorCategories.join(LIST_SEPARATOR),
     content.middleCategory,
     content.smallCategory,
     content.audience.join(LIST_SEPARATOR),
@@ -180,6 +185,7 @@ export function buildCsvTemplate(): string {
     "（例）LIFE SHIFT教科書_A4横書き",
     "人生80年時代から100年時代への移行を解説する教材",
     "REALIZE CLUB",
+    "LIFE ACADEMY",
     "LIFE SHIFT",
     "第1章",
     "RC会員、顧客",
@@ -338,6 +344,9 @@ export function parseCsvForImport(text: string): CsvImportResult {
       summary: at(raw, "summary"),
       // 大項目が空でも「分類待ち」として取り込む（分類は後から直せる）
       majorCategory: major || "分類待ち",
+      additionalMajorCategories: splitList(at(raw, "otherMajors")).filter(
+        (v) => v !== (major || "分類待ち")
+      ),
       middleCategory: at(raw, "middle"),
       smallCategory: at(raw, "small"),
       audience,

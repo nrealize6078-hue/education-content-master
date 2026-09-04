@@ -9,6 +9,7 @@ import { Button, Card, EmptyState, LoadingState, ProgressBar, StatusBadge } from
 import { useContentStore } from "@/features/contents/content-store";
 import {
   CategoryPath,
+  CrossMajorTags,
   OpenSourceButton,
   StorageLocationBox,
 } from "@/features/contents/content-actions";
@@ -73,6 +74,7 @@ function ContentDetail() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <CategoryPath content={content} className="mb-2" />
+            <CrossMajorTags content={content} className="mb-2 ml-2" />
             <h1 className="text-2xl leading-snug font-bold break-words text-[#0e2245]">
               {content.title}
             </h1>
@@ -112,6 +114,9 @@ function ContentDetail() {
         <Card className="p-5">
           <h2 className="mb-4 text-lg font-bold text-[#0e2245]">分類・対象</h2>
           <Row label="大項目">{content.majorCategory || "未設定"}</Row>
+          <Row label="横断して入れている大項目">
+            {(content.additionalMajorCategories ?? []).filter((v) => v.trim()).join("、") || "なし"}
+          </Row>
           <Row label="中項目">{content.middleCategory || "未設定"}</Row>
           <Row label="小項目">{content.smallCategory || "未設定"}</Row>
           <Row label="対象者">
