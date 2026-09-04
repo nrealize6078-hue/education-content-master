@@ -7,6 +7,7 @@ import { formatDateTime } from "@/lib/format";
 import type { EducationContent } from "@/types/content";
 import { Button, Card, EmptyState, LoadingState, ProgressBar, StatusBadge } from "@/components/ui";
 import { useContentStore } from "@/features/contents/content-store";
+import { majorHref } from "@/lib/nav";
 import {
   CategoryPath,
   CrossMajorTags,
@@ -56,13 +57,27 @@ function ContentDetail() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
-      <nav className="text-sm text-slate-500">
+      <nav className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-500">
         <Link href="/" className="focus-ring rounded font-bold hover:underline">
           ホーム
         </Link>
-        <span className="mx-2">＞</span>
+        <span>＞</span>
+        <Link
+          href={majorHref(content.majorCategory)}
+          className="focus-ring rounded font-bold break-words text-[#0f5c3f] hover:underline"
+        >
+          {content.majorCategory || "未設定"}
+        </Link>
+        <span>＞</span>
         <span className="break-words">{content.title}</span>
       </nav>
+
+      <Link
+        href={majorHref(content.majorCategory)}
+        className="focus-ring inline-flex min-h-[44px] items-center rounded-lg border-2 border-[#0f5c3f] bg-white px-4 py-2 text-base font-bold text-[#0f5c3f] hover:bg-[#e4f0e9]"
+      >
+        ← {content.majorCategory || "未設定"} の一覧へ戻る
+      </Link>
 
       {content.archivedAt ? (
         <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 font-bold text-amber-900">

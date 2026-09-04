@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   CONTENT_STATUSES,
   MAJOR_CATEGORIES,
@@ -13,6 +14,7 @@ import {
   type SortOrder,
 } from "@/types/content";
 import { APP_TAGLINE } from "@/lib/constants";
+import { majorHref } from "@/lib/nav";
 import { LoadingState } from "@/components/ui";
 import { useContentStore } from "@/features/contents/content-store";
 import { applyFilters, sortContents } from "@/features/contents/filter-utils";
@@ -32,6 +34,14 @@ import { HardDeleteDialog } from "@/features/contents/delete-dialog";
 type View = { mode: "board" } | { mode: "list"; major: string | null };
 
 export default function HomePage() {
+  return (
+    <Suspense fallback={<LoadingState />}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+function HomeContent() {
   const {
     contents,
     archived,
@@ -44,8 +54,18 @@ export default function HomePage() {
     bulkArchive,
     bulkHardDelete,
     categoryOrder,
+    setCategoryOrder,
+    notify,
   } = useContentStore();
-  const [view, setView] = useState<View>({ mode: "board" });
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const view: View = useMemo(() => {
+    const major = searchParams.get("major");
+    if (major) return { mode: "list", major };
+    if (searchParams.get("view") === "all") return { mode: "list", major: null };
+    return { mode: "board" };
+  }, [searchParams]);
   const [filters, setFilters] = useState<ContentFilters>(createEmptyFilters());
   const [sort, setSort] = useState<SortOrder>("categoryAsc");
   const [deleteTarget, setDeleteTarget] = useState<EducationContent | null>(null);
@@ -79,9 +99,11 @@ export default function HomePage() {
     const fromData = [
       ...new Set([...contents, ...archived].map((c) => c.majorCategory).filter((v) => v.trim())),
     ];
-    const list = fromData.length > 0 ? fromData : [...MAJOR_CATEGORIES];
+    // 作っただけでまだ資料が無い大項目も選べるようにする
+    const merged = [...new Set([...fromData, ...categoryOrder.major])];
+    const list = merged.length > 0 ? merged : [...MAJOR_CATEGORIES];
     return list.sort((a, b) => a.localeCompare(b, "ja", { numeric: true }));
-  }, [contents, archived]);
+  }, [contents, archived, categoryOrder]);
 
   /** 大項目ごとの中項目の候補（一覧でその場で選べるようにする） */
   const middleOptionsByMajor = useMemo(() => {
@@ -119,30 +141,24 @@ export default function HomePage() {
     });
   }, [visible]);
 
+  const go = (href: string) => {
+    setFilters(createEmptyFilters());
+    setSelectedIds(new Set());
+    router.push(href);
+    window.scrollTo({ top: 0 });
+  };
+
   const openMajor = (major: string) => {
-    setView({ mode: "list", major });
-    setFilters(createEmptyFilters());
     setSort("categoryAsc");
-    setSelectedIds(new Set());
-    window.scrollTo({ top: 0 });
+    go(majorHref(major));
   };
 
-  const openAll = () => {
-    setView({ mode: "list", major: null });
-    setFilters(createEmptyFilters());
-    setSelectedIds(new Set());
-    window.scrollTo({ top: 0 });
-  };
-
-  const backToBoard = () => {
-    setView({ mode: "board" });
-    setFilters(createEmptyFilters());
-    setSelectedIds(new Set());
-    window.scrollTo({ top: 0 });
-  };
+  const openAll = () => go(majorHref(null));
+  const backToBoard = () => go("/");
 
   const selectStatus = (status: ContentStatus) => {
-    setView({ mode: "list", major: null });
+    setSelectedIds(new Set());
+    router.push(majorHref(null));
     setFilters({ ...createEmptyFilters(), status: [status] });
   };
 
@@ -211,7 +227,8 @@ export default function HomePage() {
             contents={contents}
             onSelectStatus={selectStatus}
             onSelectUnclassified={() => {
-              setView({ mode: "list", major: null });
+              setSelectedIds(new Set());
+              router.push(majorHref(null));
               setFilters({ ...createEmptyFilters(), majorCategory: ["分類待ち"] });
             }}
             onClearFilters={() => setFilters(createEmptyFilters())}
@@ -221,6 +238,13 @@ export default function HomePage() {
             categoryOrder={categoryOrder}
             onSelect={openMajor}
             onShowAll={openAll}
+            onAddMajor={async (name) => {
+              await setCategoryOrder({
+                ...categoryOrder,
+                major: [...categoryOrder.major, name],
+              });
+              notify(`大項目「${name}」を追加しました。`);
+            }}
           />
         </>
       ) : (

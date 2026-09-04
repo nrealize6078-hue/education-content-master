@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { STATUS_STYLES } from "@/lib/constants";
 import { allMajorCategories, type ContentStatus, type EducationContent } from "@/types/content";
 import { ProgressBar } from "@/components/ui";
@@ -29,12 +29,18 @@ export function MajorCategoryBoard({
   categoryOrder = emptyCategoryOrder(),
   onSelect,
   onShowAll,
+  onAddMajor,
 }: {
   contents: EducationContent[];
   categoryOrder?: CategoryOrder;
   onSelect: (majorCategory: string) => void;
   onShowAll: () => void;
+  /** 新しい大項目（まだ資料が1件も無い棚）を作る */
+  onAddMajor?: (name: string) => Promise<void> | void;
 }) {
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState("");
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, EducationContent[]>();
     for (const content of contents) {
@@ -46,6 +52,10 @@ export function MajorCategoryBoard({
         map.set(key, list);
       }
     }
+    // 作っただけでまだ資料が無い大項目も、空の棚として出す
+    for (const name of categoryOrder.major) {
+      if (!map.has(name)) map.set(name, []);
+    }
     const compareMajor = makeComparator(categoryOrder.major);
     return [...map.entries()]
       .map(([name, items]) => ({
@@ -55,14 +65,13 @@ export function MajorCategoryBoard({
           makeComparator(categoryOrder.middle[middleKey(name)])
         ),
         completed: items.filter((i) => i.status === "完成").length,
-        completionRate: Math.round(
-          (items.filter((i) => i.status === "完成").length / items.length) * 100
-        ),
+        completionRate:
+          items.length === 0
+            ? 0
+            : Math.round((items.filter((i) => i.status === "完成").length / items.length) * 100),
       }))
       .sort((a, b) => compareMajor(a.name, b.name));
   }, [contents, categoryOrder]);
-
-  if (groups.length === 0) return null;
 
   return (
     <section className="space-y-3">
@@ -73,14 +82,88 @@ export function MajorCategoryBoard({
             カードを押すと、その大項目の中だけを開きます。
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onShowAll}
-          className="focus-ring inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-2 text-base font-bold whitespace-nowrap text-slate-800 hover:bg-slate-50"
-        >
-          すべての教材を一覧で見る（{contents.length}件）
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {onAddMajor ? (
+            <button
+              type="button"
+              onClick={() => {
+                setDraft("");
+                setError("");
+                setAdding(true);
+              }}
+              className="focus-ring inline-flex min-h-[44px] items-center justify-center rounded-lg border-2 border-[#0f5c3f] bg-white px-5 py-2 text-base font-bold whitespace-nowrap text-[#0f5c3f] hover:bg-[#e4f0e9]"
+            >
+              ＋ 大項目を追加
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={onShowAll}
+            className="focus-ring inline-flex min-h-[44px] items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-2 text-base font-bold whitespace-nowrap text-slate-800 hover:bg-slate-50"
+          >
+            すべての教材を一覧で見る（{contents.length}件）
+          </button>
+        </div>
       </div>
+
+      {adding && onAddMajor ? (
+        <div className="rounded-xl border-2 border-[#0f5c3f] bg-[#e4f0e9] px-4 py-4">
+          <label htmlFor="new-major" className="mb-1 block text-base font-bold text-[#0e2245]">
+            新しい大項目の名前
+          </label>
+          <p className="mb-2 text-sm text-slate-600">
+            番号を付けると並びが揃います（例：11｜新しい棚）。あとから名前も順番も変えられます。
+          </p>
+          {error ? (
+            <p role="alert" className="mb-2 text-[15px] font-bold text-red-700">
+              {error}
+            </p>
+          ) : null}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              id="new-major"
+              autoFocus
+              value={draft}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                setError("");
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setAdding(false);
+              }}
+              placeholder="例：11｜新しい棚"
+              className="focus-ring min-w-0 flex-1 rounded-lg border-2 border-slate-300 bg-white px-4 py-3 text-lg"
+            />
+            <button
+              type="button"
+              onClick={async () => {
+                const name = draft.trim();
+                if (!name) {
+                  setError("名前を入れてください。");
+                  return;
+                }
+                if (groups.some((g) => g.name === name)) {
+                  setError("同じ名前の大項目がすでにあります。");
+                  return;
+                }
+                await onAddMajor(name);
+                setAdding(false);
+                setDraft("");
+              }}
+              className="focus-ring inline-flex min-h-[48px] items-center justify-center rounded-lg bg-[#0f5c3f] px-6 py-2 text-base font-bold whitespace-nowrap text-white hover:bg-[#0c4b34]"
+            >
+              追加する
+            </button>
+            <button
+              type="button"
+              onClick={() => setAdding(false)}
+              className="focus-ring inline-flex min-h-[48px] items-center justify-center rounded-lg border border-slate-300 bg-white px-5 py-2 text-base font-bold whitespace-nowrap text-slate-700 hover:bg-slate-50"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {groups.map((group) => (
@@ -128,7 +211,7 @@ export function MajorCategoryBoard({
               </span>
 
               <span className="mt-auto pt-3 text-[15px] font-bold text-[#0f5c3f]">
-                この中を開く →
+                {group.items.length === 0 ? "まだ資料がありません" : "この中を開く →"}
               </span>
             </button>
           </li>

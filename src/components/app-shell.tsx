@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
 import { useContentStore } from "@/features/contents/content-store";
 import { useAuth } from "@/features/auth/auth-provider";
+import { NavMenu } from "./nav-menu";
 import { ToastArea } from "./ui";
 
 const NAV = [
@@ -30,6 +31,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="text-xl font-bold tracking-wide">{APP_NAME}</span>
             <span className="hidden text-sm text-white/70 lg:inline">{APP_TAGLINE}</span>
           </Link>
+          <NavMenu />
+
           <nav className="-mx-1 flex items-center gap-1 overflow-x-auto">
             {NAV.map((item) => {
               const active =

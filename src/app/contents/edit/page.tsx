@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { EducationContentDraft } from "@/types/content";
 import { EmptyState, LoadingState } from "@/components/ui";
 import { useContentStore } from "@/features/contents/content-store";
+import { majorHref } from "@/lib/nav";
 import { ContentForm } from "@/features/contents/content-form";
 
 export default function EditContentPage() {
@@ -54,18 +55,25 @@ function EditContent() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <nav className="mb-3 text-sm text-slate-500">
+      <nav className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-500">
         <Link href="/" className="focus-ring rounded font-bold hover:underline">
           ホーム
         </Link>
-        <span className="mx-2">＞</span>
+        <span>＞</span>
+        <Link
+          href={majorHref(content.majorCategory)}
+          className="focus-ring rounded font-bold break-words text-[#0f5c3f] hover:underline"
+        >
+          {content.majorCategory || "未設定"}
+        </Link>
+        <span>＞</span>
         <Link
           href={`/contents/detail?id=${content.id}`}
           className="focus-ring rounded font-bold hover:underline"
         >
           詳細
         </Link>
-        <span className="mx-2">＞</span>
+        <span>＞</span>
         <span>編集</span>
       </nav>
       <h1 className="mb-1 text-2xl font-bold text-[#0e2245]">教材を編集</h1>
