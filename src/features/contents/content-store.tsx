@@ -11,21 +11,22 @@ import {
   type ReactNode,
 } from "react";
 import { localContentRepository } from "@/repositories/local-content-repository";
+import { supabaseContentRepository } from "@/repositories/supabase-content-repository";
+import { loadCategoryOrder, saveCategoryOrder } from "@/repositories/settings-repository";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import type { ContentRepository } from "@/repositories/content-repository";
 import type { EducationContent, EducationContentDraft } from "@/types/content";
 import { getStatus, loadFromFile, saveToFile, type SaveFileStatus } from "@/lib/file-store";
-import {
-  emptyCategoryOrder,
-  readCategoryOrder,
-  writeCategoryOrder,
-  type CategoryOrder,
-} from "@/lib/category-order";
+import { emptyCategoryOrder, type CategoryOrder } from "@/lib/category-order";
 
 /**
- * MVPで使うリポジトリはここ1か所で決まる。
- * Supabaseへ移行する際は、この定数を差し替えるだけでUI側の変更は不要。
+ * データの置き場所はここ1か所で決まる。
+ * 接続先が設定されていればサーバー（Supabase）、なければブラウザ内。
  */
-const repository: ContentRepository = localContentRepository;
+const serverMode = isSupabaseConfigured();
+const repository: ContentRepository = serverMode
+  ? supabaseContentRepository
+  : localContentRepository;
 
 type Toast = { id: string; message: string; tone: "success" | "error" };
 
@@ -46,6 +47,8 @@ type ContentStoreValue = {
   bulkHardDelete: (ids: string[]) => Promise<void>;
   exportAll: () => Promise<EducationContent[]>;
   replaceAll: (items: EducationContent[]) => Promise<void>;
+  /** サーバー保存（ログイン制）で動いているか */
+  serverMode: boolean;
   toasts: Toast[];
   notify: (message: string, tone?: "success" | "error") => void;
   dismissToast: (id: string) => void;
@@ -71,10 +74,7 @@ export function ContentStoreProvider({ children }: { children: ReactNode }) {
   const [categoryOrder, setCategoryOrderState] = useState<CategoryOrder>(emptyCategoryOrder());
 
   useEffect(() => {
-    setCategoryOrderState(readCategoryOrder());
-    const handler = () => setCategoryOrderState(readCategoryOrder());
-    window.addEventListener("ecm:category-order-changed", handler);
-    return () => window.removeEventListener("ecm:category-order-changed", handler);
+    void loadCategoryOrder().then(setCategoryOrderState);
   }, []);
 
   const reload = useCallback(async () => {
@@ -84,7 +84,8 @@ export function ContentStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshFileStatus = useCallback(async () => {
-    setFileStatus(await getStatus());
+    // サーバー保存のときは保存先ファイルの設定は不要
+    setFileStatus(serverMode ? { state: "ready", name: "サーバー" } : await getStatus());
   }, []);
 
   useEffect(() => {
@@ -110,14 +111,14 @@ export function ContentStoreProvider({ children }: { children: ReactNode }) {
       restoredRef.current = true;
       return;
     }
-    if (fileStatus.state !== "ready") return;
+    if (serverMode || fileStatus.state !== "ready") return;
     restoredRef.current = true;
     void (async () => {
       const loaded = await loadFromFile();
       if (loaded && loaded.contents.length > 0) {
         await repository.replaceAll(loaded.contents);
         if (loaded.categoryOrder) {
-          writeCategoryOrder(loaded.categoryOrder);
+          await saveCategoryOrder(loaded.categoryOrder);
           setCategoryOrderState(loaded.categoryOrder);
         }
         await reload();
@@ -143,7 +144,9 @@ export function ContentStoreProvider({ children }: { children: ReactNode }) {
         const result = await fn();
         await reload();
         // ブラウザ内だけに残さず、保存ファイルへも書き出す
-        const saved = await saveToFile(await repository.exportAll(), readCategoryOrder());
+        const saved = serverMode
+          ? true
+          : await saveToFile(await repository.exportAll(), await loadCategoryOrder());
         if (successMessage) notify(successMessage, "success");
         if (!saved) void refreshFileStatus();
         return result;
@@ -175,6 +178,7 @@ export function ContentStoreProvider({ children }: { children: ReactNode }) {
         wrap(() => repository.bulkHardDelete(ids), `${ids.length}件を完全に削除しました。`),
       exportAll: () => repository.exportAll(),
       replaceAll: (items) => wrap(() => repository.replaceAll(items), "バックアップから復元しました。"),
+      serverMode,
       toasts,
       notify,
       dismissToast,
@@ -182,9 +186,9 @@ export function ContentStoreProvider({ children }: { children: ReactNode }) {
       refreshFileStatus,
       categoryOrder,
       setCategoryOrder: async (next: CategoryOrder) => {
-        writeCategoryOrder(next);
+        await saveCategoryOrder(next);
         setCategoryOrderState(next);
-        await saveToFile(await repository.exportAll(), next);
+        if (!serverMode) await saveToFile(await repository.exportAll(), next);
       },
       loadFromSaveFile: async () => {
         const loaded = await loadFromFile();
@@ -196,7 +200,7 @@ export function ContentStoreProvider({ children }: { children: ReactNode }) {
         }
         await repository.replaceAll(items);
         if (loaded?.categoryOrder) {
-          writeCategoryOrder(loaded.categoryOrder);
+          await saveCategoryOrder(loaded.categoryOrder);
           setCategoryOrderState(loaded.categoryOrder);
         }
         await reload();
@@ -204,7 +208,7 @@ export function ContentStoreProvider({ children }: { children: ReactNode }) {
         return items.length;
       },
       saveToSaveFile: async () => {
-        const ok = await saveToFile(await repository.exportAll(), readCategoryOrder());
+        const ok = await saveToFile(await repository.exportAll(), await loadCategoryOrder());
         if (ok) notify("保存ファイルへ書き出しました。");
         else notify("保存ファイルへ書き出せませんでした。設定を確認してください。", "error");
         await refreshFileStatus();

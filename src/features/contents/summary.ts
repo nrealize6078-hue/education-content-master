@@ -1,15 +1,19 @@
-import type { ContentStatus, EducationContent } from "@/types/content";
+import { allMajorCategories, type ContentStatus, type EducationContent } from "@/types/content";
 
 export type Summary = {
   total: number;
   byStatus: Record<ContentStatus, number>;
   unclassified: number;
-  overallProgress: number;
+  /** 全体に占める「完成」の割合（％） */
+  completionRate: number;
+  /** 「完成」の件数 */
+  completedCount: number;
   byMajorCategory: Array<{
     name: string;
     count: number;
     completed: number;
-    averageProgress: number;
+    /** その大項目に占める「完成」の割合（％） */
+    completionRate: number;
   }>;
   priorityItems: EducationContent[];
   nextActionItems: EducationContent[];
@@ -33,27 +37,29 @@ export function buildSummary(contents: EducationContent[]): Summary {
     (c) => c.majorCategory === "分類待ち" || !c.majorCategory.trim()
   ).length;
 
-  const overallProgress =
-    contents.length === 0
-      ? 0
-      : Math.round(contents.reduce((sum, c) => sum + (c.progress || 0), 0) / contents.length);
+  const completedCount = contents.filter((c) => c.status === "完成").length;
+  const completionRate =
+    contents.length === 0 ? 0 : Math.round((completedCount / contents.length) * 100);
 
   const groups = new Map<string, EducationContent[]>();
   for (const content of contents) {
-    const key = content.majorCategory || "未設定";
-    const list = groups.get(key) ?? [];
-    list.push(content);
-    groups.set(key, list);
+    const keys = allMajorCategories(content);
+    for (const key of keys.length > 0 ? keys : ["未設定"]) {
+      const list = groups.get(key) ?? [];
+      list.push(content);
+      groups.set(key, list);
+    }
   }
   const byMajorCategory = [...groups.entries()]
-    .map(([name, items]) => ({
-      name,
-      count: items.length,
-      completed: items.filter((i) => i.status === "完成").length,
-      averageProgress: Math.round(
-        items.reduce((sum, i) => sum + (i.progress || 0), 0) / items.length
-      ),
-    }))
+    .map(([name, items]) => {
+      const completed = items.filter((i) => i.status === "完成").length;
+      return {
+        name,
+        count: items.length,
+        completed,
+        completionRate: items.length === 0 ? 0 : Math.round((completed / items.length) * 100),
+      };
+    })
     .sort((a, b) => b.count - a.count);
 
   const priorityRank: Record<string, number> = { 最優先: 2, 高: 1 };
@@ -75,7 +81,8 @@ export function buildSummary(contents: EducationContent[]): Summary {
     total: contents.length,
     byStatus,
     unclassified,
-    overallProgress,
+    completionRate,
+    completedCount,
     byMajorCategory,
     priorityItems,
     nextActionItems,

@@ -10,13 +10,13 @@ import { useContentStore } from "./content-store";
  * 保存ファイルが設定できていない間だけ出す。
  */
 export function SaveFileBanner() {
-  const { fileStatus, refreshFileStatus, saveToSaveFile, notify } = useContentStore();
+  const { serverMode, fileStatus, refreshFileStatus, saveToSaveFile, notify } = useContentStore();
   const [busy, setBusy] = useState(false);
   // ブラウザの対応状況は描画後に調べる（サーバー描画と食い違わせないため）
   const [supported, setSupported] = useState<boolean | null>(null);
   useEffect(() => setSupported(isFileStoreSupported()), []);
 
-  if (fileStatus.state === "ready") return null;
+  if (serverMode || fileStatus.state === "ready") return null;
 
   const setUp = async () => {
     setBusy(true);

@@ -95,14 +95,16 @@ export function Dashboard({
 
       <div className="grid gap-5 lg:grid-cols-3">
         <Card className="p-5 lg:col-span-1">
-          <SectionTitle>全体の進みぐあい</SectionTitle>
+          <SectionTitle>全体の完成率</SectionTitle>
           <p className="text-4xl font-bold text-[#0f5c3f] tabular-nums">
-            {summary.overallProgress}
+            {summary.completionRate}
             <span className="ml-1 text-2xl">%</span>
           </p>
-          <p className="mt-1 text-sm text-slate-500">登録済み{summary.total}件の完成度の平均</p>
+          <p className="mt-1 text-sm text-slate-500">
+            登録済み{summary.total}件のうち、状態が「完成」なのは{summary.completedCount}件
+          </p>
           <div className="mt-4">
-            <ProgressBar value={summary.overallProgress} />
+            <ProgressBar value={summary.completionRate} />
           </div>
           <dl className="mt-5 space-y-2 border-t border-slate-100 pt-4">
             {(Object.keys(summary.byStatus) as ContentStatus[]).map((status) => (
@@ -135,7 +137,7 @@ export function Dashboard({
                     {row.count}件 / 完成{row.completed}
                   </span>
                   <div className="min-w-[140px] flex-1">
-                    <ProgressBar value={row.averageProgress} />
+                    <ProgressBar value={row.completionRate} />
                   </div>
                 </li>
               ))}

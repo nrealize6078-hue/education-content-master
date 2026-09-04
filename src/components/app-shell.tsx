@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
 import { useContentStore } from "@/features/contents/content-store";
+import { useAuth } from "@/features/auth/auth-provider";
 import { ToastArea } from "./ui";
 
 const NAV = [
@@ -19,6 +20,7 @@ const NAV = [
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { toasts, dismissToast, archived } = useContentStore();
+  const { serverMode, email, role, signOut } = useAuth();
 
   return (
     <div className="min-h-screen">
@@ -51,6 +53,22 @@ export function AppShell({ children }: { children: ReactNode }) {
               );
             })}
           </nav>
+
+          {serverMode && email ? (
+            <div className="flex flex-wrap items-center gap-2 pb-2 text-sm">
+              <span className="rounded-lg bg-white/10 px-2.5 py-1 font-bold text-white/90">
+                {email}
+                {role === "viewer" ? "（閲覧のみ）" : ""}
+              </span>
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                className="focus-ring rounded-lg border border-white/30 px-3 py-1 font-bold text-white hover:bg-white/10"
+              >
+                ログアウト
+              </button>
+            </div>
+          ) : null}
         </div>
       </header>
 

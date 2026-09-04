@@ -29,6 +29,12 @@ jobs:
         run: npm ci
 
       - name: 静的サイトを書き出す
+        # Supabaseの接続先は、リポジトリの Settings ＞ Secrets and variables ＞
+        # Actions ＞ Variables に登録する。未設定でもビルドは通り、
+        # その場合はこれまでどおりブラウザ内保存で動く。
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: npm run build:pages
 
       - uses: actions/configure-pages@v5

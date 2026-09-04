@@ -17,7 +17,7 @@ type Group = {
   items: EducationContent[];
   middles: string[];
   completed: number;
-  averageProgress: number;
+  completionRate: number;
 };
 
 /**
@@ -55,8 +55,8 @@ export function MajorCategoryBoard({
           makeComparator(categoryOrder.middle[middleKey(name)])
         ),
         completed: items.filter((i) => i.status === "完成").length,
-        averageProgress: Math.round(
-          items.reduce((sum, i) => sum + (i.progress || 0), 0) / items.length
+        completionRate: Math.round(
+          (items.filter((i) => i.status === "完成").length / items.length) * 100
         ),
       }))
       .sort((a, b) => compareMajor(a.name, b.name));
@@ -99,11 +99,13 @@ export function MajorCategoryBoard({
                   {group.items.length}
                 </span>
                 <span className="text-[15px] font-bold text-slate-600">件</span>
-                <span className="text-sm text-slate-500">完成 {group.completed}件</span>
+                <span className="text-sm text-slate-500">
+                  完成 {group.completed}件（{group.completionRate}%）
+                </span>
               </span>
 
               <span className="mt-3 block">
-                <ProgressBar value={group.averageProgress} />
+                <ProgressBar value={group.completionRate} />
               </span>
 
               <span className="mt-3 flex flex-wrap gap-1.5">

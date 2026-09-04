@@ -7,6 +7,7 @@ import { exportContentsToCsv } from "@/lib/content-csv";
 import type { EducationContent } from "@/types/content";
 import { Button, Card, Modal } from "@/components/ui";
 import { useContentStore } from "@/features/contents/content-store";
+import { MigrateLocalButton } from "@/features/contents/migrate-local-button";
 import {
   chooseExistingFile,
   chooseNewFile,
@@ -23,6 +24,7 @@ export default function BackupPage() {
     replaceAll,
     reload,
     notify,
+    serverMode,
     fileStatus,
     refreshFileStatus,
     saveToSaveFile,
@@ -103,7 +105,30 @@ export default function BackupPage() {
         </p>
       </div>
 
-      <Card className="p-5">
+      {serverMode ? (
+        <Card className="p-5">
+          <h2 className="mb-2 text-lg font-bold text-[#0e2245]">保存場所</h2>
+          <p className="rounded-lg border border-[#0f5c3f] bg-[#e4f0e9] px-4 py-3 text-[15px] font-bold text-[#0f5c3f]">
+            サーバーに保存しています。どのPC・スマホからでも同じデータが見えます。
+          </p>
+          <p className="mt-3 text-sm text-slate-500">
+            ※ 念のため、大きな変更の前には下の「JSONバックアップを書き出す」で
+            控えを取っておくと安心です。
+          </p>
+          <div className="mt-4 border-t border-slate-200 pt-4">
+            <h3 className="mb-1 text-base font-bold text-[#0e2245]">
+              このブラウザに残っているデータをサーバーへ移す
+            </h3>
+            <p className="mb-3 text-[15px] text-slate-600">
+              サーバーへ切り替える前にこのブラウザで登録した分を、まとめて移せます。
+              すでにサーバーにあるデータは消しません（重複にご注意ください）。
+            </p>
+            <MigrateLocalButton />
+          </div>
+        </Card>
+      ) : null}
+
+      <Card className={serverMode ? "hidden" : "p-5"}>
         <h2 className="mb-2 text-lg font-bold text-[#0e2245]">自動保存（おすすめ）</h2>
         {fileStatus.state === "unsupported" ? (
           <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-[15px] text-amber-900">
