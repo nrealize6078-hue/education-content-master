@@ -56,7 +56,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 sm:py-8">{children}</main>
 
       <footer className="mx-auto max-w-[1400px] px-4 pb-10 text-sm text-slate-500 sm:px-6">
-        データはこのブラウザ内（ローカルストレージ）に保存されています。別のPCとは共有されません。
+        データはこのブラウザ内に保存されます。「バックアップ」で保存先ファイルを決めておくと、変更のたびに自動でファイルへ書き出され、消えなくなります。
       </footer>
 
       <ToastArea toasts={toasts} onDismiss={dismissToast} />

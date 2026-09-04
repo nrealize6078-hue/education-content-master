@@ -6,12 +6,14 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { localContentRepository } from "@/repositories/local-content-repository";
 import type { ContentRepository } from "@/repositories/content-repository";
 import type { EducationContent, EducationContentDraft } from "@/types/content";
+import { getStatus, loadFromFile, saveToFile, type SaveFileStatus } from "@/lib/file-store";
 
 /**
  * MVPで使うリポジトリはここ1か所で決まる。
@@ -41,6 +43,13 @@ type ContentStoreValue = {
   toasts: Toast[];
   notify: (message: string, tone?: "success" | "error") => void;
   dismissToast: (id: string) => void;
+  /** 保存ファイルの設定状況 */
+  fileStatus: SaveFileStatus;
+  refreshFileStatus: () => Promise<void>;
+  /** 保存ファイルの中身を画面へ取り込む */
+  loadFromSaveFile: () => Promise<number>;
+  /** いまのデータを保存ファイルへ書き出す */
+  saveToSaveFile: () => Promise<boolean>;
 };
 
 const ContentStoreContext = createContext<ContentStoreValue | null>(null);
@@ -49,12 +58,21 @@ export function ContentStoreProvider({ children }: { children: ReactNode }) {
   const [all, setAll] = useState<EducationContent[]>([]);
   const [loading, setLoading] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [fileStatus, setFileStatus] = useState<SaveFileStatus>({ state: "none" });
 
   const reload = useCallback(async () => {
     const items = await repository.list({ includeArchived: true });
     setAll(items);
     setLoading(false);
   }, []);
+
+  const refreshFileStatus = useCallback(async () => {
+    setFileStatus(await getStatus());
+  }, []);
+
+  useEffect(() => {
+    void refreshFileStatus();
+  }, [refreshFileStatus]);
 
   useEffect(() => {
     void reload();
@@ -66,6 +84,25 @@ export function ContentStoreProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("storage", handler);
     };
   }, [reload]);
+
+  // 起動時、ブラウザ内が空でも保存ファイルにデータがあれば自動で読み戻す
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (loading || restoredRef.current) return;
+    if (all.length > 0) {
+      restoredRef.current = true;
+      return;
+    }
+    if (fileStatus.state !== "ready") return;
+    restoredRef.current = true;
+    void (async () => {
+      const items = await loadFromFile();
+      if (items && items.length > 0) {
+        await repository.replaceAll(items);
+        await reload();
+      }
+    })();
+  }, [all.length, loading, fileStatus, reload]);
 
   const notify = useCallback((message: string, tone: "success" | "error" = "success") => {
     const id = `${Date.now()}-${Math.random()}`;
@@ -84,7 +121,10 @@ export function ContentStoreProvider({ children }: { children: ReactNode }) {
       try {
         const result = await fn();
         await reload();
+        // ブラウザ内だけに残さず、保存ファイルへも書き出す
+        const saved = await saveToFile(await repository.exportAll());
         if (successMessage) notify(successMessage, "success");
+        if (!saved) void refreshFileStatus();
         return result;
       } catch (error) {
         const message = error instanceof Error ? error.message : "処理に失敗しました。";
@@ -117,8 +157,29 @@ export function ContentStoreProvider({ children }: { children: ReactNode }) {
       toasts,
       notify,
       dismissToast,
+      fileStatus,
+      refreshFileStatus,
+      loadFromSaveFile: async () => {
+        const items = await loadFromFile();
+        if (!items) {
+          notify("保存ファイルを読み込めませんでした。もう一度ファイルを選び直してください。", "error");
+          await refreshFileStatus();
+          return 0;
+        }
+        await repository.replaceAll(items);
+        await reload();
+        notify(`保存ファイルから${items.length}件を読み込みました。`);
+        return items.length;
+      },
+      saveToSaveFile: async () => {
+        const ok = await saveToFile(await repository.exportAll());
+        if (ok) notify("保存ファイルへ書き出しました。");
+        else notify("保存ファイルへ書き出せませんでした。設定を確認してください。", "error");
+        await refreshFileStatus();
+        return ok;
+      },
     };
-  }, [all, loading, reload, toasts, notify, dismissToast]);
+  }, [all, loading, reload, toasts, notify, dismissToast, fileStatus, refreshFileStatus]);
 
   return <ContentStoreContext.Provider value={value}>{children}</ContentStoreContext.Provider>;
 }

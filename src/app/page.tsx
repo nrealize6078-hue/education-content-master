@@ -16,6 +16,7 @@ import { useContentStore } from "@/features/contents/content-store";
 import { applyFilters, sortContents } from "@/features/contents/filter-utils";
 import { useStickyList } from "@/features/contents/use-sticky-list";
 import { Dashboard } from "@/features/contents/dashboard";
+import { SaveFileBanner } from "@/features/contents/save-file-banner";
 import { SearchFilterBar } from "@/features/contents/search-filter-bar";
 import { ContentList } from "@/features/contents/content-list";
 import { BulkActionBar } from "@/features/contents/bulk-action-bar";
@@ -96,6 +97,8 @@ export default function HomePage() {
           ＋ 新しい教材を登録
         </Link>
       </div>
+
+      <SaveFileBanner />
 
       {loading ? (
         <LoadingState />

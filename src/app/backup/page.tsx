@@ -1,15 +1,36 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { downloadCsv, downloadJson, parseCsv } from "@/lib/csv";
 import { exportContentsToCsv } from "@/lib/content-csv";
 import type { EducationContent } from "@/types/content";
 import { Button, Card, Modal } from "@/components/ui";
 import { useContentStore } from "@/features/contents/content-store";
+import {
+  chooseExistingFile,
+  chooseNewFile,
+  forgetFile,
+  isFileStoreSupported,
+  regrantPermission,
+} from "@/lib/file-store";
 
 export default function BackupPage() {
-  const { contents, archived, exportAll, replaceAll, notify } = useContentStore();
+  const {
+    contents,
+    archived,
+    exportAll,
+    replaceAll,
+    reload,
+    notify,
+    fileStatus,
+    refreshFileStatus,
+    saveToSaveFile,
+    loadFromSaveFile,
+  } = useContentStore();
+  const [fileBusy, setFileBusy] = useState(false);
+  const [fileApiSupported, setFileApiSupported] = useState<boolean | null>(null);
+  useEffect(() => setFileApiSupported(isFileStoreSupported()), []);
   const [pending, setPending] = useState<EducationContent[] | null>(null);
   const [fileName, setFileName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -77,9 +98,133 @@ export default function BackupPage() {
       <div>
         <h1 className="text-2xl font-bold text-[#0e2245]">バックアップと復元</h1>
         <p className="mt-1 text-slate-600">
-          データはこのブラウザの中だけに保存されています。定期的に書き出して保管してください。
+          保存先ファイルを決めておくと、変更のたびに自動で書き出されます。
+          手元にファイルとして残るので、ブラウザを閉じてもデータは消えません。
         </p>
       </div>
+
+      <Card className="p-5">
+        <h2 className="mb-2 text-lg font-bold text-[#0e2245]">自動保存（おすすめ）</h2>
+        {fileStatus.state === "unsupported" ? (
+          <p className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-[15px] text-amber-900">
+            このブラウザは自動保存に対応していません。Google Chrome か Microsoft Edge
+            で開くとご利用いただけます。それまでは下の「書き出す」でこまめに保存してください。
+          </p>
+        ) : (
+          <>
+            <p
+              className={
+                fileStatus.state === "ready"
+                  ? "rounded-lg border border-[#0f5c3f] bg-[#e4f0e9] px-4 py-3 text-[15px] font-bold text-[#0f5c3f]"
+                  : "rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-[15px] font-bold text-red-800"
+              }
+            >
+              {fileStatus.state === "ready"
+                ? `自動保存中：${fileStatus.name}`
+                : fileStatus.state === "needs-permission"
+                  ? `自動保存が止まっています（保存先：${fileStatus.name}）。「自動保存を再開する」を押してください。`
+                  : "自動保存は未設定です。いまのデータはこのブラウザの中にしかありません。"}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <Button
+                variant="primary"
+                disabled={fileBusy}
+                onClick={async () => {
+                  setFileBusy(true);
+                  try {
+                    const name = await chooseNewFile();
+                    await refreshFileStatus();
+                    await saveToSaveFile();
+                    notify(`${name} に自動保存するようにしました。`);
+                  } catch {
+                    notify("保存先ファイルが選ばれませんでした。", "error");
+                  } finally {
+                    setFileBusy(false);
+                  }
+                }}
+              >
+                {fileStatus.state === "none" ? "保存先ファイルを決める" : "保存先を変える"}
+              </Button>
+
+              {fileStatus.state === "needs-permission" ? (
+                <Button
+                  disabled={fileBusy}
+                  onClick={async () => {
+                    setFileBusy(true);
+                    try {
+                      const ok = await regrantPermission();
+                      await refreshFileStatus();
+                      if (ok) await saveToSaveFile();
+                      else notify("書き込みが許可されませんでした。", "error");
+                    } finally {
+                      setFileBusy(false);
+                    }
+                  }}
+                >
+                  自動保存を再開する
+                </Button>
+              ) : null}
+
+              <Button
+                disabled={fileBusy || fileApiSupported === false}
+                onClick={async () => {
+                  setFileBusy(true);
+                  try {
+                    const { name, items } = await chooseExistingFile();
+                    setPending(items);
+                    setFileName(name);
+                    await refreshFileStatus();
+                  } catch {
+                    notify("保存ファイルを開けませんでした。", "error");
+                  } finally {
+                    setFileBusy(false);
+                  }
+                }}
+              >
+                保存ファイルを開いて読み込む
+              </Button>
+
+              {fileStatus.state === "ready" ? (
+                <>
+                  <Button
+                    disabled={fileBusy}
+                    onClick={async () => {
+                      setFileBusy(true);
+                      try {
+                        await loadFromSaveFile();
+                      } finally {
+                        setFileBusy(false);
+                      }
+                    }}
+                  >
+                    保存ファイルから読み直す
+                  </Button>
+                  <Button
+                    disabled={fileBusy}
+                    onClick={async () => {
+                      setFileBusy(true);
+                      try {
+                        await forgetFile();
+                        await refreshFileStatus();
+                        await reload();
+                        notify("自動保存を解除しました。ファイル自体は消していません。");
+                      } finally {
+                        setFileBusy(false);
+                      }
+                    }}
+                  >
+                    自動保存をやめる
+                  </Button>
+                </>
+              ) : null}
+            </div>
+            <p className="mt-3 text-sm text-slate-500">
+              ※ 保存先は共有フォルダやOneDrive上のファイルでも構いません。別のPCで使うときは
+              「保存ファイルを開いて読み込む」で同じファイルを選んでください。
+            </p>
+          </>
+        )}
+      </Card>
 
       <Card className="p-5">
         <h2 className="mb-2 text-lg font-bold text-[#0e2245]">現在のデータ</h2>
