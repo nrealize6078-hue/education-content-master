@@ -38,15 +38,20 @@ export function CategoryPath({
   content,
   className,
   hideMajor,
+  hideMiddle,
 }: {
   content: EducationContent;
   className?: string;
   /** 一覧では大項目を選択欄で出すため、パス表示からは省ける */
   hideMajor?: boolean;
+  /** 中項目も選択欄で出す場合は省ける */
+  hideMiddle?: boolean;
 }) {
-  const parts = hideMajor
-    ? [content.middleCategory, content.smallCategory]
-    : [content.majorCategory, content.middleCategory, content.smallCategory];
+  const parts = [
+    ...(hideMajor ? [] : [content.majorCategory]),
+    ...(hideMiddle ? [] : [content.middleCategory]),
+    content.smallCategory,
+  ];
   return (
     <span className={cn("inline-flex flex-wrap items-center gap-1 text-sm", className)}>
       {parts.map((part, index) => (

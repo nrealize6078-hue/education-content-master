@@ -13,6 +13,8 @@ import { ActionMenu, CategoryPath, CrossMajorTags, OpenSourceButton } from "./co
 type Props = {
   contents: EducationContent[];
   majorOptions: string[];
+  /** 大項目ごとの、いま使われている中項目の一覧 */
+  middleOptionsByMajor: Record<string, string[]>;
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
   onToggleSelectAll: () => void;
@@ -30,6 +32,7 @@ type Props = {
 export function ContentList({
   contents,
   majorOptions,
+  middleOptionsByMajor,
   selectedIds,
   onToggleSelect,
   onToggleSelectAll,
@@ -126,7 +129,14 @@ export function ContentList({
                       ))}
                     </select>
                     <CrossMajorTags content={content} className="mb-1" />
-                    <CategoryPath content={content} hideMajor />
+                    <MiddleSelect
+                      value={content.middleCategory}
+                      options={middleOptionsByMajor[content.majorCategory] ?? []}
+                      onChange={(middleCategory) =>
+                        onInlineUpdate(content.id, { middleCategory })
+                      }
+                    />
+                    <CategoryPath content={content} hideMajor hideMiddle />
                   </td>
                   <td className="px-3 py-3 text-[15px] break-words text-slate-700">{content.materialFormat}</td>
                   <td className="px-4 py-3">
@@ -241,7 +251,12 @@ export function ContentList({
                 ))}
               </select>
               <CrossMajorTags content={content} className="mt-1" />
-              <CategoryPath content={content} hideMajor />
+              <MiddleSelect
+                value={content.middleCategory}
+                options={middleOptionsByMajor[content.majorCategory] ?? []}
+                onChange={(middleCategory) => onInlineUpdate(content.id, { middleCategory })}
+              />
+              <CategoryPath content={content} hideMajor hideMiddle />
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -279,6 +294,85 @@ export function ContentList({
         ))}
       </div>
     </>
+  );
+}
+
+const NEW_MIDDLE = " new";
+
+/**
+ * 中項目をその場で変えられる選択欄。
+ * 同じ大項目の中で使われている中項目から選べるほか、新しい名前も入力できる。
+ */
+function MiddleSelect({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: string[];
+  onChange: (next: string) => void;
+}) {
+  const [typing, setTyping] = useState(false);
+  const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (typing) inputRef.current?.focus();
+  }, [typing]);
+
+  const commit = () => {
+    const next = draft.trim();
+    setTyping(false);
+    if (next && next !== value) onChange(next);
+  };
+
+  if (typing) {
+    return (
+      <input
+        ref={inputRef}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            commit();
+          }
+          if (e.key === "Escape") setTyping(false);
+        }}
+        placeholder="新しい中項目の名前"
+        aria-label="新しい中項目の名前"
+        className="focus-ring mb-1 w-full rounded-lg border-2 border-[#0f5c3f] bg-white px-2 py-1.5 text-sm text-[#0e2245]"
+      />
+    );
+  }
+
+  // いま入っている値が候補に無い場合も、選べるように足しておく
+  const list = value.trim() && !options.includes(value) ? [value, ...options] : options;
+
+  return (
+    <select
+      value={value}
+      onChange={(e) => {
+        if (e.target.value === NEW_MIDDLE) {
+          setDraft("");
+          setTyping(true);
+          return;
+        }
+        onChange(e.target.value);
+      }}
+      aria-label="中項目"
+      title={value || "中項目は未設定です"}
+      className="focus-ring mb-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-800"
+    >
+      <option value="">（中項目は未設定）</option>
+      {list.map((m) => (
+        <option key={m} value={m}>
+          {m}
+        </option>
+      ))}
+      <option value={NEW_MIDDLE}>＋ 新しい中項目を入力…</option>
+    </select>
   );
 }
 

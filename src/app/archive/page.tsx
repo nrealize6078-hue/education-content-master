@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   MAJOR_CATEGORIES,
+  allMajorCategories,
   createEmptyFilters,
   type ContentFilters,
   type EducationContent,
@@ -49,6 +50,24 @@ export default function ArchivePage() {
     const base = fromData.length > 0 ? fromData : [...MAJOR_CATEGORIES];
     return base.sort((a, b) => a.localeCompare(b, "ja"));
   }, [contents, archived]);
+
+  /** 大項目ごとの中項目の候補（一覧でその場で選べるようにする） */
+  const middleOptionsByMajor = useMemo(() => {
+    const map: Record<string, Set<string>> = {};
+    for (const content of archived) {
+      for (const major of allMajorCategories(content)) {
+        const middle = content.middleCategory.trim();
+        if (!middle) continue;
+        (map[major] ??= new Set()).add(middle);
+      }
+    }
+    return Object.fromEntries(
+      Object.entries(map).map(([major, set]) => [
+        major,
+        [...set].sort((a, b) => a.localeCompare(b, "ja", { numeric: true })),
+      ])
+    );
+  }, [archived]);
 
   useEffect(() => {
     setSelectedIds((prev) => {
@@ -112,6 +131,7 @@ export default function ArchivePage() {
           <ContentList
             contents={visible}
             majorOptions={majorOptions}
+            middleOptionsByMajor={middleOptionsByMajor}
             selectedIds={selectedIds}
             onToggleSelect={toggleSelect}
             onToggleSelectAll={toggleSelectAll}

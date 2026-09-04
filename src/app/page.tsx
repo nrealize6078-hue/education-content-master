@@ -83,6 +83,24 @@ export default function HomePage() {
     return list.sort((a, b) => a.localeCompare(b, "ja", { numeric: true }));
   }, [contents, archived]);
 
+  /** 大項目ごとの中項目の候補（一覧でその場で選べるようにする） */
+  const middleOptionsByMajor = useMemo(() => {
+    const map: Record<string, Set<string>> = {};
+    for (const content of contents) {
+      for (const major of allMajorCategories(content)) {
+        const middle = content.middleCategory.trim();
+        if (!middle) continue;
+        (map[major] ??= new Set()).add(middle);
+      }
+    }
+    return Object.fromEntries(
+      Object.entries(map).map(([major, set]) => [
+        major,
+        [...set].sort((a, b) => a.localeCompare(b, "ja", { numeric: true })),
+      ])
+    );
+  }, [contents]);
+
   const scopedStatusCounts = useMemo(() => {
     const counts = Object.fromEntries(CONTENT_STATUSES.map((s) => [s, 0])) as Record<
       ContentStatus,
@@ -246,7 +264,7 @@ export default function HomePage() {
           />
 
           <p className="text-sm text-slate-500">
-            タイトルの ✎ を押すとその場で書き換えられます。状態と大項目は一覧の欄から直接変更できます。
+            タイトルの ✎ を押すとその場で書き換えられます。状態・大項目・中項目は一覧の欄から直接変更できます。
             左端のチェックを付けると、まとめて変更・削除ができます。
             <br className="hidden sm:block" />
             変更した行は、絞り込み条件から外れても並び順が変わっても、その場に残ります。
@@ -255,6 +273,7 @@ export default function HomePage() {
           <ContentList
             contents={visible}
             majorOptions={majorOptions}
+            middleOptionsByMajor={middleOptionsByMajor}
             selectedIds={selectedIds}
             onToggleSelect={toggleSelect}
             onToggleSelectAll={toggleSelectAll}
