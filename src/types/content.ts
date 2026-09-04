@@ -161,6 +161,7 @@ export function createEmptyDraft(): EducationContentDraft {
 }
 
 export type SortOrder =
+  | "categoryAsc"
   | "updatedDesc"
   | "updatedAsc"
   | "titleAsc"
@@ -170,6 +171,7 @@ export type SortOrder =
   | "createdDesc";
 
 export const SORT_LABELS: Record<SortOrder, string> = {
+  categoryAsc: "大項目順（大項目 ＞ 中項目 ＞ 小項目）",
   updatedDesc: "最終更新日が新しい順",
   updatedAsc: "最終更新日が古い順",
   titleAsc: "タイトル順",

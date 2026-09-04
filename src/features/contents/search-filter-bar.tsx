@@ -37,6 +37,7 @@ export function SearchFilterBar({
   onSortChange,
   contents,
   resultCount,
+  hideMajorFilter = false,
 }: {
   filters: ContentFilters;
   onChange: (next: ContentFilters) => void;
@@ -44,6 +45,8 @@ export function SearchFilterBar({
   onSortChange: (next: SortOrder) => void;
   contents: EducationContent[];
   resultCount: number;
+  /** 大項目を1つに絞って表示しているときは、大項目の絞り込みを出さない */
+  hideMajorFilter?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const activeCount = countActiveFilters(filters);
@@ -95,7 +98,9 @@ export function SearchFilterBar({
   };
 
   const groups: Array<{ key: FilterKey; options: readonly string[] }> = [
-    { key: "majorCategory", options: majorOptions },
+    ...(hideMajorFilter
+      ? []
+      : [{ key: "majorCategory" as FilterKey, options: majorOptions as readonly string[] }]),
     { key: "middleCategory", options: middleOptions },
     { key: "status", options: CONTENT_STATUSES },
     { key: "audience", options: AUDIENCES },

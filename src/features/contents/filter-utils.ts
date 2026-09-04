@@ -46,6 +46,17 @@ export function applyFilters(
   });
 }
 
+/** 「1｜」「10｜」のような番号付きの名前を数字として正しく並べる */
+function compareJa(a: string, b: string): number {
+  return a.localeCompare(b, "ja", { numeric: true, sensitivity: "base" });
+}
+
+/** 未設定・空欄は末尾へ回す */
+function categoryKey(value: string): string {
+  const v = value.trim();
+  return v && v !== "未設定" ? v : "￿";
+}
+
 const PRIORITY_RANK: Record<string, number> = {
   最優先: 4,
   高: 3,
@@ -57,6 +68,14 @@ const PRIORITY_RANK: Record<string, number> = {
 export function sortContents(contents: EducationContent[], order: SortOrder): EducationContent[] {
   const items = [...contents];
   switch (order) {
+    case "categoryAsc":
+      return items.sort(
+        (a, b) =>
+          compareJa(categoryKey(a.majorCategory), categoryKey(b.majorCategory)) ||
+          compareJa(categoryKey(a.middleCategory), categoryKey(b.middleCategory)) ||
+          compareJa(categoryKey(a.smallCategory), categoryKey(b.smallCategory)) ||
+          compareJa(a.title, b.title)
+      );
     case "updatedDesc":
       return items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     case "updatedAsc":
