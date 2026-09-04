@@ -11,8 +11,21 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  * allowed_users の一覧で決まる。
  */
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+/**
+ * 接続先URLの表記ゆれを吸収する。
+ * Supabaseの画面には用途別に `/rest/v1/` などが付いたURLも表示されるため、
+ * それを貼られても動くように、末尾の余分な部分を取り除いておく。
+ */
+function normalizeUrl(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed === "") return "";
+  return trimmed
+    .replace(/\/(rest|auth|storage|realtime|functions)\/v\d+\/?$/i, "")
+    .replace(/\/+$/, "");
+}
+
+const url = normalizeUrl(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "");
+const anonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "").trim();
 
 export function isSupabaseConfigured(): boolean {
   return url.trim() !== "" && anonKey.trim() !== "";
