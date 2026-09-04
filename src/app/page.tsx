@@ -12,6 +12,7 @@ import {
   type SortOrder,
 } from "@/types/content";
 import { APP_TAGLINE } from "@/lib/constants";
+import { labelOf } from "@/lib/category-order";
 import { LoadingState } from "@/components/ui";
 import { useContentStore } from "@/features/contents/content-store";
 import { applyFilters, sortContents } from "@/features/contents/filter-utils";
@@ -42,6 +43,7 @@ export default function HomePage() {
     bulkUpdate,
     bulkArchive,
     bulkHardDelete,
+    categoryOrder,
   } = useContentStore();
   const [view, setView] = useState<View>({ mode: "board" });
   const [filters, setFilters] = useState<ContentFilters>(createEmptyFilters());
@@ -56,13 +58,13 @@ export default function HomePage() {
     () =>
       selectedMajor === null
         ? contents
-        : contents.filter((c) => (c.majorCategory.trim() || "未設定") === selectedMajor),
+        : contents.filter((c) => labelOf(c.majorCategory) === selectedMajor),
     [contents, selectedMajor]
   );
 
   const base = useMemo(
-    () => sortContents(applyFilters(scoped, filters), sort),
-    [scoped, filters, sort]
+    () => sortContents(applyFilters(scoped, filters), sort, categoryOrder),
+    [scoped, filters, sort, categoryOrder]
   );
 
   // 変更した行が絞り込みや並び順のせいで消えないようにする
@@ -196,7 +198,12 @@ export default function HomePage() {
             }}
             onClearFilters={() => setFilters(createEmptyFilters())}
           />
-          <MajorCategoryBoard contents={contents} onSelect={openMajor} onShowAll={openAll} />
+          <MajorCategoryBoard
+            contents={contents}
+            categoryOrder={categoryOrder}
+            onSelect={openMajor}
+            onShowAll={openAll}
+          />
         </>
       ) : (
         <>

@@ -1,6 +1,7 @@
 "use client";
 
 import type { EducationContent } from "@/types/content";
+import type { CategoryOrder } from "./category-order";
 
 /**
  * データをパソコンのファイルとして保存し続けるための仕組み。
@@ -136,7 +137,7 @@ export async function chooseExistingFile(): Promise<{ name: string; items: Educa
     throw new Error("このファイルへの書き込みが許可されませんでした。");
   }
   await idbSet(HANDLE_KEY, handle);
-  return { name: handle.name, items: await readItems(handle) };
+  return { name: handle.name, items: (await readItems(handle)).contents };
 }
 
 /** 保存先の許可を取り直す（ブラウザを開き直した直後に必要になることがある） */
@@ -151,20 +152,29 @@ export async function forgetFile(): Promise<void> {
   await idbDelete(HANDLE_KEY);
 }
 
-async function readItems(handle: FileHandle): Promise<EducationContent[]> {
+export type SaveFileContent = {
+  contents: EducationContent[];
+  /** 分類の並び順。古い保存ファイルには入っていない。 */
+  categoryOrder?: CategoryOrder;
+};
+
+async function readItems(handle: FileHandle): Promise<SaveFileContent> {
   const file = await handle.getFile();
   const text = await file.text();
-  if (!text.trim()) return [];
+  if (!text.trim()) return { contents: [] };
   const parsed = JSON.parse(text) as unknown;
   const list = Array.isArray(parsed)
     ? parsed
     : (parsed as { contents?: unknown }).contents;
   if (!Array.isArray(list)) throw new Error("保存ファイルの形式が違います。");
-  return list as EducationContent[];
+  const categoryOrder = Array.isArray(parsed)
+    ? undefined
+    : (parsed as { categoryOrder?: CategoryOrder }).categoryOrder;
+  return { contents: list as EducationContent[], categoryOrder };
 }
 
 /** 保存ファイルの中身を読む。許可が無い・未設定なら null。 */
-export async function loadFromFile(): Promise<EducationContent[] | null> {
+export async function loadFromFile(): Promise<SaveFileContent | null> {
   const handle = await getHandle();
   if (!handle) return null;
   try {
@@ -179,14 +189,21 @@ export async function loadFromFile(): Promise<EducationContent[] | null> {
  * 保存ファイルへ書き出す。
  * 未設定・許可なしのときは false を返すだけで、画面の操作は止めない。
  */
-export async function saveToFile(items: EducationContent[]): Promise<boolean> {
+export async function saveToFile(
+  items: EducationContent[],
+  categoryOrder?: CategoryOrder
+): Promise<boolean> {
   const handle = await getHandle();
   if (!handle) return false;
   try {
     if ((await handle.queryPermission({ mode: "readwrite" })) !== "granted") return false;
     const writable = await handle.createWritable();
     await writable.write(
-      JSON.stringify({ savedAt: new Date().toISOString(), contents: items }, null, 2)
+      JSON.stringify(
+        { savedAt: new Date().toISOString(), contents: items, categoryOrder },
+        null,
+        2
+      )
     );
     await writable.close();
     return true;

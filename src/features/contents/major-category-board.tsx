@@ -4,6 +4,13 @@ import { useMemo } from "react";
 import { STATUS_STYLES } from "@/lib/constants";
 import type { ContentStatus, EducationContent } from "@/types/content";
 import { ProgressBar } from "@/components/ui";
+import {
+  emptyCategoryOrder,
+  labelOf,
+  makeComparator,
+  middleKey,
+  type CategoryOrder,
+} from "@/lib/category-order";
 
 type Group = {
   name: string;
@@ -13,45 +20,44 @@ type Group = {
   averageProgress: number;
 };
 
-function compareJa(a: string, b: string): number {
-  return a.localeCompare(b, "ja", { numeric: true, sensitivity: "base" });
-}
-
 /**
  * 大項目ごとのカード。押すと、その大項目の中だけを開く。
  * 473件を一度に見せると探せないため、まずここで行き先を選んでもらう。
  */
 export function MajorCategoryBoard({
   contents,
+  categoryOrder = emptyCategoryOrder(),
   onSelect,
   onShowAll,
 }: {
   contents: EducationContent[];
+  categoryOrder?: CategoryOrder;
   onSelect: (majorCategory: string) => void;
   onShowAll: () => void;
 }) {
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, EducationContent[]>();
     for (const content of contents) {
-      const key = content.majorCategory.trim() || "未設定";
+      const key = labelOf(content.majorCategory);
       const list = map.get(key) ?? [];
       list.push(content);
       map.set(key, list);
     }
+    const compareMajor = makeComparator(categoryOrder.major);
     return [...map.entries()]
       .map(([name, items]) => ({
         name,
         items,
         middles: [...new Set(items.map((i) => i.middleCategory.trim()).filter(Boolean))].sort(
-          compareJa
+          makeComparator(categoryOrder.middle[middleKey(name)])
         ),
         completed: items.filter((i) => i.status === "完成").length,
         averageProgress: Math.round(
           items.reduce((sum, i) => sum + (i.progress || 0), 0) / items.length
         ),
       }))
-      .sort((a, b) => compareJa(a.name, b.name));
-  }, [contents]);
+      .sort((a, b) => compareMajor(a.name, b.name));
+  }, [contents, categoryOrder]);
 
   if (groups.length === 0) return null;
 

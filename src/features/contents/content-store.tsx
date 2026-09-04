@@ -14,6 +14,12 @@ import { localContentRepository } from "@/repositories/local-content-repository"
 import type { ContentRepository } from "@/repositories/content-repository";
 import type { EducationContent, EducationContentDraft } from "@/types/content";
 import { getStatus, loadFromFile, saveToFile, type SaveFileStatus } from "@/lib/file-store";
+import {
+  emptyCategoryOrder,
+  readCategoryOrder,
+  writeCategoryOrder,
+  type CategoryOrder,
+} from "@/lib/category-order";
 
 /**
  * MVPで使うリポジトリはここ1か所で決まる。
@@ -50,6 +56,9 @@ type ContentStoreValue = {
   loadFromSaveFile: () => Promise<number>;
   /** いまのデータを保存ファイルへ書き出す */
   saveToSaveFile: () => Promise<boolean>;
+  /** 大項目・中項目・小項目の並び順 */
+  categoryOrder: CategoryOrder;
+  setCategoryOrder: (next: CategoryOrder) => Promise<void>;
 };
 
 const ContentStoreContext = createContext<ContentStoreValue | null>(null);
@@ -59,6 +68,14 @@ export function ContentStoreProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [fileStatus, setFileStatus] = useState<SaveFileStatus>({ state: "none" });
+  const [categoryOrder, setCategoryOrderState] = useState<CategoryOrder>(emptyCategoryOrder());
+
+  useEffect(() => {
+    setCategoryOrderState(readCategoryOrder());
+    const handler = () => setCategoryOrderState(readCategoryOrder());
+    window.addEventListener("ecm:category-order-changed", handler);
+    return () => window.removeEventListener("ecm:category-order-changed", handler);
+  }, []);
 
   const reload = useCallback(async () => {
     const items = await repository.list({ includeArchived: true });
@@ -96,9 +113,13 @@ export function ContentStoreProvider({ children }: { children: ReactNode }) {
     if (fileStatus.state !== "ready") return;
     restoredRef.current = true;
     void (async () => {
-      const items = await loadFromFile();
-      if (items && items.length > 0) {
-        await repository.replaceAll(items);
+      const loaded = await loadFromFile();
+      if (loaded && loaded.contents.length > 0) {
+        await repository.replaceAll(loaded.contents);
+        if (loaded.categoryOrder) {
+          writeCategoryOrder(loaded.categoryOrder);
+          setCategoryOrderState(loaded.categoryOrder);
+        }
         await reload();
       }
     })();
@@ -122,7 +143,7 @@ export function ContentStoreProvider({ children }: { children: ReactNode }) {
         const result = await fn();
         await reload();
         // ブラウザ内だけに残さず、保存ファイルへも書き出す
-        const saved = await saveToFile(await repository.exportAll());
+        const saved = await saveToFile(await repository.exportAll(), readCategoryOrder());
         if (successMessage) notify(successMessage, "success");
         if (!saved) void refreshFileStatus();
         return result;
@@ -159,27 +180,38 @@ export function ContentStoreProvider({ children }: { children: ReactNode }) {
       dismissToast,
       fileStatus,
       refreshFileStatus,
+      categoryOrder,
+      setCategoryOrder: async (next: CategoryOrder) => {
+        writeCategoryOrder(next);
+        setCategoryOrderState(next);
+        await saveToFile(await repository.exportAll(), next);
+      },
       loadFromSaveFile: async () => {
-        const items = await loadFromFile();
+        const loaded = await loadFromFile();
+        const items = loaded?.contents ?? null;
         if (!items) {
           notify("保存ファイルを読み込めませんでした。もう一度ファイルを選び直してください。", "error");
           await refreshFileStatus();
           return 0;
         }
         await repository.replaceAll(items);
+        if (loaded?.categoryOrder) {
+          writeCategoryOrder(loaded.categoryOrder);
+          setCategoryOrderState(loaded.categoryOrder);
+        }
         await reload();
         notify(`保存ファイルから${items.length}件を読み込みました。`);
         return items.length;
       },
       saveToSaveFile: async () => {
-        const ok = await saveToFile(await repository.exportAll());
+        const ok = await saveToFile(await repository.exportAll(), readCategoryOrder());
         if (ok) notify("保存ファイルへ書き出しました。");
         else notify("保存ファイルへ書き出せませんでした。設定を確認してください。", "error");
         await refreshFileStatus();
         return ok;
       },
     };
-  }, [all, loading, reload, toasts, notify, dismissToast, fileStatus, refreshFileStatus]);
+  }, [all, loading, reload, toasts, notify, dismissToast, fileStatus, refreshFileStatus, categoryOrder]);
 
   return <ContentStoreContext.Provider value={value}>{children}</ContentStoreContext.Provider>;
 }

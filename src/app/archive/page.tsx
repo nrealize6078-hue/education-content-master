@@ -29,6 +29,7 @@ export default function ArchivePage() {
     hardDelete,
     bulkUpdate,
     bulkHardDelete,
+    categoryOrder,
   } = useContentStore();
   const [filters, setFilters] = useState<ContentFilters>(createEmptyFilters());
   const [sort, setSort] = useState<SortOrder>("updatedDesc");
@@ -36,8 +37,8 @@ export default function ArchivePage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const base = useMemo(
-    () => sortContents(applyFilters(archived, filters), sort),
-    [archived, filters, sort]
+    () => sortContents(applyFilters(archived, filters), sort, categoryOrder),
+    [archived, filters, sort, categoryOrder]
   );
 
   const resetKey = useMemo(() => `${JSON.stringify(filters)}|${sort}`, [filters, sort]);
